@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-to-b from-cream-100 via-cream-100 to-blush-50 text-terracotta-700 font-sans min-h-screen;
+  }
+  h1, h2, h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white/90 backdrop-blur rounded-xl2 shadow-card border border-blush-100;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-semibold px-5 py-2.5 transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-terracotta-400 to-blush-500 text-white shadow-soft hover:brightness-105;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-terracotta-600 border border-terracotta-200 hover:bg-terracotta-50;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-terracotta-500 hover:bg-blush-100;
+  }
+  .input {
+    @apply w-full rounded-2xl border border-blush-200 bg-white px-4 py-2.5 text-terracotta-700 placeholder:text-terracotta-300 focus:outline-none focus:ring-2 focus:ring-blush-400 focus:border-transparent;
+  }
+  .label {
+    @apply block text-sm font-semibold text-terracotta-600 mb-1.5;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #F6A6B2;
+  border-radius: 8px;
+}
