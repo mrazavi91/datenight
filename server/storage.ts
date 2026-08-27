@@ -1,4 +1,4 @@
-import { eq, or, and, desc } from "drizzle-orm";
+import { eq, or, and, desc, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "./db";
 import {
@@ -6,14 +6,18 @@ import {
   couples,
   invitations,
   memories,
+  memoryPhotos,
   notifications,
   payments,
+  supportRequests,
   type User,
   type Couple,
   type Invitation,
   type Memory,
+  type MemoryPhoto,
   type Notification,
   type Payment,
+  type SupportRequest,
 } from "../shared/schema";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
@@ -73,6 +77,7 @@ export const storage = {
       inviteCode,
       user1Id,
       user2Id: null,
+      credits: 0,
       createdAt: Date.now(),
     };
     db.insert(couples).values(couple).run();
@@ -91,9 +96,33 @@ export const storage = {
     if (!partnerId) return undefined;
     return this.getUserById(partnerId);
   },
+  async incrementCoupleCredits(coupleId: string, delta: number): Promise<void> {
+    db.update(couples).set({ credits: sql`${couples.credits} + ${delta}` }).where(eq(couples.id, coupleId)).run();
+  },
+  // Atomically spends one credit; false if the couple had none (guards against a
+  // concurrent double-spend the same way payment fulfillment is guarded above).
+  async spendCoupleCredit(coupleId: string): Promise<boolean> {
+    const result = db
+      .update(couples)
+      .set({ credits: sql`${couples.credits} - 1` })
+      .where(and(eq(couples.id, coupleId), sql`${couples.credits} > 0`))
+      .run();
+    return result.changes > 0;
+  },
 
   // ----- Invitations -----
-  async createInvitation(data: { coupleId: string; senderId: string; recipientId: string; title: string; date: string; time: string; location?: string; note?: string; emoji: string }): Promise<Invitation> {
+  async createInvitation(data: {
+    coupleId: string;
+    senderId: string;
+    recipientId: string;
+    title: string;
+    date: string;
+    time: string;
+    location?: string;
+    note?: string;
+    emoji: string;
+    paidWithCredit?: boolean;
+  }): Promise<Invitation> {
     const invite: Invitation = {
       id: nanoid(),
       coupleId: data.coupleId,
@@ -111,6 +140,8 @@ export const storage = {
       proposedTime: null,
       proposedNote: null,
       proposedBy: null,
+      paidWithCredit: data.paidWithCredit ? 1 : 0,
+      creditAwarded: 0,
       createdAt: Date.now(),
       respondedAt: null,
     };
@@ -125,6 +156,23 @@ export const storage = {
   },
   async updateInvitation(id: string, patch: Partial<Invitation>): Promise<void> {
     db.update(invitations).set(patch).where(eq(invitations.id, id)).run();
+  },
+  async getUnawardedAcceptedInvitations(coupleId: string): Promise<Invitation[]> {
+    return db
+      .select()
+      .from(invitations)
+      .where(and(eq(invitations.coupleId, coupleId), eq(invitations.status, "accepted"), eq(invitations.creditAwarded, 0)))
+      .all();
+  },
+  // Atomically marks a "date happened" credit as paid out for this invitation; false if
+  // another concurrent reconcile pass already claimed it.
+  async claimCreditAward(invitationId: string): Promise<boolean> {
+    const result = db
+      .update(invitations)
+      .set({ creditAwarded: 1 })
+      .where(and(eq(invitations.id, invitationId), eq(invitations.creditAwarded, 0)))
+      .run();
+    return result.changes > 0;
   },
 
   // ----- Memories -----
@@ -147,6 +195,37 @@ export const storage = {
     };
     db.insert(memories).values(memory).run();
     return memory;
+  },
+  async getOrCreateMemory(invitationId: string): Promise<Memory> {
+    const existing = await this.getMemoryByInvitationId(invitationId);
+    if (existing) return existing;
+    return this.upsertMemory(invitationId, {});
+  },
+
+  // ----- Memory photos -----
+  async addMemoryPhoto(data: { memoryId: string; filename: string; originalName?: string }): Promise<MemoryPhoto> {
+    const photo: MemoryPhoto = {
+      id: nanoid(),
+      memoryId: data.memoryId,
+      filename: data.filename,
+      originalName: data.originalName ?? null,
+      createdAt: Date.now(),
+    };
+    db.insert(memoryPhotos).values(photo).run();
+    return photo;
+  },
+  async getMemoryPhotos(memoryId: string): Promise<MemoryPhoto[]> {
+    return db.select().from(memoryPhotos).where(eq(memoryPhotos.memoryId, memoryId)).orderBy(desc(memoryPhotos.createdAt)).all();
+  },
+  async getMemoryPhotoById(id: string): Promise<MemoryPhoto | undefined> {
+    return db.select().from(memoryPhotos).where(eq(memoryPhotos.id, id)).get();
+  },
+  async deleteMemoryPhoto(id: string): Promise<void> {
+    db.delete(memoryPhotos).where(eq(memoryPhotos.id, id)).run();
+  },
+  async countMemoryPhotos(memoryId: string): Promise<number> {
+    const rows = await this.getMemoryPhotos(memoryId);
+    return rows.length;
   },
 
   // ----- Notifications -----
@@ -217,5 +296,20 @@ export const storage = {
       .where(and(eq(payments.id, id), eq(payments.status, "pending")))
       .run();
     return result.changes > 0;
+  },
+
+  // ----- Support requests -----
+  async createSupportRequest(data: { userId?: string; name: string; email: string; message: string }): Promise<SupportRequest> {
+    const request: SupportRequest = {
+      id: nanoid(),
+      userId: data.userId ?? null,
+      name: data.name,
+      email: data.email,
+      message: data.message,
+      status: "open",
+      createdAt: Date.now(),
+    };
+    db.insert(supportRequests).values(request).run();
+    return request;
   },
 };

@@ -58,11 +58,16 @@ export default {
           "0%, 100%": { transform: "rotate(-3deg)" },
           "50%": { transform: "rotate(3deg)" },
         },
+        bob: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
       },
       animation: {
         "pop-in": "pop-in 0.25s ease-out",
         "float-heart": "float-heart 1s ease-out forwards",
         wiggle: "wiggle 0.4s ease-in-out",
+        bob: "bob 2.4s ease-in-out infinite",
       },
     },
   },

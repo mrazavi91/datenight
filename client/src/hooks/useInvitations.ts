@@ -29,10 +29,16 @@ export function useInvitationActions() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
     queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/couples/me"] });
   };
 
   const checkout = useMutation({
     mutationFn: (input: CreateInvitationInput) => apiPost<{ url: string }>("/api/invitations/checkout", input),
+  });
+
+  const useCredit = useMutation({
+    mutationFn: (input: CreateInvitationInput) => apiPost<{ invitation: Invitation }>("/api/invitations/use-credit", input),
+    onSuccess: invalidate,
   });
 
   const respond = useMutation({
@@ -47,7 +53,7 @@ export function useInvitationActions() {
     onSuccess: invalidate,
   });
 
-  return { checkout, respond, saveMemory };
+  return { checkout, useCredit, respond, saveMemory };
 }
 
 export function useInvitationPrice() {

@@ -19,6 +19,7 @@ export const couples = sqliteTable("couples", {
   inviteCode: text("invite_code").notNull().unique(),
   user1Id: text("user1_id").notNull(),
   user2Id: text("user2_id"),
+  credits: integer("credits").notNull().default(0), // shared date-token balance
   createdAt: integer("created_at").notNull(),
 });
 
@@ -39,6 +40,8 @@ export const invitations = sqliteTable("invitations", {
   proposedTime: text("proposed_time"),
   proposedNote: text("proposed_note"),
   proposedBy: text("proposed_by"),
+  paidWithCredit: integer("paid_with_credit").notNull().default(0),
+  creditAwarded: integer("credit_awarded").notNull().default(0), // has a "date happened" token been paid out for this?
   createdAt: integer("created_at").notNull(),
   respondedAt: integer("responded_at"),
 });
@@ -48,6 +51,24 @@ export const memories = sqliteTable("memories", {
   invitationId: text("invitation_id").notNull().unique(),
   note: text("note"),
   rating: integer("rating"),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const memoryPhotos = sqliteTable("memory_photos", {
+  id: text("id").primaryKey(),
+  memoryId: text("memory_id").notNull(),
+  filename: text("filename").notNull(), // on-disk name under data/uploads
+  originalName: text("original_name"),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const supportRequests = sqliteTable("support_requests", {
+  id: text("id").primaryKey(),
+  userId: text("user_id"),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("open"), // open | resolved
   createdAt: integer("created_at").notNull(),
 });
 
@@ -118,15 +139,25 @@ export const createMemorySchema = z.object({
   rating: z.number().int().min(1).max(5).optional(),
 });
 
+export const supportRequestSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(80),
+  email: z.string().trim().toLowerCase().email("Invalid email"),
+  message: z.string().trim().min(1, "Please tell us what's going on").max(4000),
+});
+
 export const INVITATION_PRICE_MINOR = 199; // £1.99
 export const INVITATION_PRICE_CURRENCY = "gbp";
+export const MAX_MEMORY_PHOTOS = 6;
+export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export type User = typeof users.$inferSelect;
 export type Couple = typeof couples.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Memory = typeof memories.$inferSelect;
+export type MemoryPhoto = typeof memoryPhotos.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
+export type SupportRequest = typeof supportRequests.$inferSelect;
 
 export const insertUserSchema = createInsertSchema(users);
 export const insertInvitationSchema = createInsertSchema(invitations);

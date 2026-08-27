@@ -8,7 +8,8 @@ A web app for couples to send and respond to date invitations — plan a date, y
 - **Backend:** Node.js + Express, same process as Vite in dev (Vite runs in middleware mode)
 - **Database:** SQLite via `better-sqlite3` + Drizzle ORM
 - **Auth:** Passport.js — `passport-local` (email/password) and `passport-google-oauth20` (Google sign-in). Signing up with Google using an email that already has a password account links to the same user instead of creating a duplicate.
-- **Payments:** Stripe Checkout — sending an invitation costs £1.99, charged to the sender.
+- **Payments:** Stripe Checkout — sending an invitation costs £1.99, charged to the sender. No real refunds; a decline or a completed date earns a shared "date token" the couple can spend on a future invite instead of paying.
+- **Uploads:** `multer`, storing memory photos on local disk under `data/uploads/` (served at `/uploads/...`) — swap for S3/Cloudinary if you deploy somewhere that needs it.
 - **Realtime:** polling (TanStack Query `refetchInterval`) for invitations/notifications — good enough for v1; swap for Socket.io later if needed.
 
 ## Getting started
@@ -54,8 +55,9 @@ shared/       Drizzle schema + Zod validators shared by client and server
 
 ## Core flow
 
-1. Sign up (email/password or Google) → create a couple space or join one with a 6-character invite code.
-2. Either partner creates a date invitation (title, date, time, location, emoji theme, note) and pays £1.99 via Stripe Checkout to send it — the invitation is only created once payment succeeds.
-3. The partner accepts 💚, declines 💔, or proposes a new time 🔄 (which goes back to the original sender to accept/decline/re-propose) — no additional charge for responding or rescheduling.
-4. Accepted invitations show up under Upcoming Dates (with confetti on accept) and move to Past Dates once the date passes, where either partner can add a memory note and a 1–5 heart rating.
-5. In-app notifications (bell + toast) fire on new invites, responses, and reschedule proposals.
+1. Signed-out visitors land on a marketing Home page (with About/Support in the nav); sign up (email/password or Google) → create a couple space or join one with a 6-character invite code.
+2. Either partner creates a date invitation (title, date, time, location, emoji theme, note) and pays £1.99 via Stripe Checkout to send it, or spends a date token instead if the couple has one — the invitation is only created once payment (or the token spend) succeeds.
+3. The partner accepts 💚, declines 💔, or proposes a new time 🔄 (which goes back to the original sender to accept/decline/re-propose) — no additional charge for responding or rescheduling. A decline credits the sender's couple with a date token (no real refund).
+4. Accepted invitations show up under Upcoming Dates (with confetti on accept) and move to Past Dates once the date passes — which also credits the couple with a date token. Either partner can add a memory note, a 1–5 heart rating, and up to 6 photos to a past date.
+5. In-app notifications (bell + toast) fire on new invites, responses, reschedule proposals, and earned tokens.
+6. A public Support page lets anyone (signed in or not) send a message, stored server-side — wiring it to actually email you needs an email provider (e.g. Resend, SendGrid), which isn't configured yet.

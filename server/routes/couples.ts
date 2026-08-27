@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { joinCoupleSchema, toPublicUser } from "../../shared/schema";
 import type { User } from "../../shared/schema";
 import { requireAuth } from "../middleware";
+import { reconcilePastDateCredits } from "../credits";
 
 const router = Router();
 
@@ -13,11 +14,15 @@ router.get("/me", async (req, res) => {
   if (!user.coupleId) {
     return res.json({ couple: null, partner: null });
   }
-  const couple = await storage.getCoupleById(user.coupleId);
+  let couple = await storage.getCoupleById(user.coupleId);
   if (!couple) return res.json({ couple: null, partner: null });
+  if (couple.user2Id) {
+    await reconcilePastDateCredits(couple.id);
+    couple = (await storage.getCoupleById(couple.id))!;
+  }
   const partner = await storage.getPartner(user);
   res.json({
-    couple: { id: couple.id, inviteCode: couple.inviteCode, paired: Boolean(couple.user2Id) },
+    couple: { id: couple.id, inviteCode: couple.inviteCode, paired: Boolean(couple.user2Id), credits: couple.credits },
     partner: partner ? toPublicUser(partner) : null,
   });
 });

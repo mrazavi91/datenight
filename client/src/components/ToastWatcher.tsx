@@ -9,9 +9,10 @@ export default function ToastWatcher() {
   const [toasts, setToasts] = useState<Notification[]>([]);
 
   useEffect(() => {
-    const notifications = data?.notifications ?? [];
+    if (!data) return; // wait for the first real fetch — an empty pre-fetch render must not count as "seen"
+    const notifications = data.notifications;
     if (seenIds.current === null) {
-      // First load: don't toast historical notifications.
+      // First real load: don't toast historical notifications.
       seenIds.current = new Set(notifications.map((n) => n.id));
       return;
     }

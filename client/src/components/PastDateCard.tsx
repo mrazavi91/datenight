@@ -1,28 +1,41 @@
-import { useEffect, useState } from "react";
-import type { Invitation, PublicUser } from "@shared/schema";
+import { useEffect, useRef, useState } from "react";
+import type { Invitation, PublicUser, Memory } from "@shared/schema";
 import { formatDate, formatTime } from "@/lib/invitations";
 import { useInvitationActions } from "@/hooks/useInvitations";
-import { api } from "@/lib/api";
-import type { Memory } from "@shared/schema";
-import { Heart, MapPin } from "lucide-react";
+import { api, apiUpload, ApiError } from "@/lib/api";
+import { Heart, MapPin, Camera, X } from "lucide-react";
+
+interface Photo {
+  id: string;
+  url: string;
+}
+
+const MAX_PHOTOS = 6;
 
 export default function PastDateCard({ invitation, partner }: { invitation: Invitation; partner: PublicUser | null }) {
   const { saveMemory } = useInvitationActions();
   const [memory, setMemory] = useState<Memory | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [note, setNote] = useState("");
   const [rating, setRating] = useState(0);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    api<{ memory: Memory | null }>(`/api/invitations/${invitation.id}/memory`).then((res) => {
+  function loadMemory() {
+    api<{ memory: Memory | null; photos: Photo[] }>(`/api/invitations/${invitation.id}/memory`).then((res) => {
       if (res.memory) {
         setMemory(res.memory);
         setNote(res.memory.note ?? "");
         setRating(res.memory.rating ?? 0);
       }
+      setPhotos(res.photos ?? []);
     });
-  }, [invitation.id]);
+  }
+
+  useEffect(loadMemory, [invitation.id]);
 
   async function handleSave() {
     const res = await saveMemory.mutateAsync({ id: invitation.id, note, rating: rating || undefined });
@@ -30,6 +43,33 @@ export default function PastDateCard({ invitation, partner }: { invitation: Invi
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
+  }
+
+  async function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setPhotoError(null);
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((f) => formData.append("photos", f));
+      const res = await apiUpload<{ photos: Photo[] }>(`/api/invitations/${invitation.id}/memory/photos`, formData);
+      setPhotos(res.photos);
+    } catch (err) {
+      setPhotoError(err instanceof ApiError ? err.message : "Couldn't upload those photos");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeletePhoto(photoId: string) {
+    setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+    try {
+      await api(`/api/invitations/${invitation.id}/memory/photos/${photoId}`, { method: "DELETE" });
+    } catch {
+      loadMemory(); // out of sync with the server — refetch to recover
+    }
   }
 
   return (
@@ -45,6 +85,23 @@ export default function PastDateCard({ invitation, partner }: { invitation: Invi
             <p className="text-sm text-terracotta-400 flex items-center gap-1 mt-0.5">
               <MapPin size={14} /> {invitation.location}
             </p>
+          )}
+
+          {photos.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {photos.map((p) => (
+                <div key={p.id} className="relative w-16 h-16 rounded-xl overflow-hidden border border-blush-100 shrink-0">
+                  <img src={p.url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => handleDeletePhoto(p.id)}
+                    className="absolute top-0.5 right-0.5 bg-terracotta-900/60 text-white rounded-full p-0.5"
+                    aria-label="Remove photo"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
 
           {!editing && memory && (memory.note || memory.rating) ? (
@@ -93,6 +150,29 @@ export default function PastDateCard({ invitation, partner }: { invitation: Invi
               </div>
             </div>
           )}
+
+          {photos.length < MAX_PHOTOS && (
+            <div className="mt-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                className="hidden"
+                onChange={handleFilesSelected}
+              />
+              <button
+                type="button"
+                className="btn-ghost !py-1.5 !px-3 text-sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                <Camera size={15} />
+                {uploading ? "Uploading…" : "Add photos"}
+              </button>
+            </div>
+          )}
+          {photoError && <p className="text-xs text-blush-600 mt-1">{photoError}</p>}
           {saved && <p className="text-xs text-green-600 mt-1">Saved 💾</p>}
         </div>
       </div>

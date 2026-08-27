@@ -19,6 +19,7 @@ export default function Header() {
   const { user, logout } = useAuth();
   const { data } = useCouple();
   const partner = data?.partner;
+  const credits = data?.couple?.credits ?? 0;
 
   return (
     <header className="sticky top-0 z-20 bg-cream-100/80 backdrop-blur border-b border-blush-100">
@@ -29,6 +30,11 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          {credits > 0 && (
+            <span className="badge bg-sunset-100 text-terracotta-600 gap-1" title="Date tokens — spend instead of paying">
+              🎟️ {credits}
+            </span>
+          )}
           {partner && user && (
             <div className="hidden sm:flex items-center -space-x-2">
               <Avatar name={user.name} url={user.avatarUrl} />

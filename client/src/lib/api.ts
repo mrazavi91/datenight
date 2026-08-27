@@ -27,3 +27,15 @@ export async function api<T = unknown>(url: string, options: RequestInit = {}): 
 
 export const apiPost = <T = unknown>(url: string, data?: unknown) =>
   api<T>(url, { method: "POST", body: data !== undefined ? JSON.stringify(data) : undefined });
+
+// For multipart/form-data uploads — deliberately skips the JSON Content-Type header so the
+// browser can set its own multipart boundary.
+export async function apiUpload<T = unknown>(url: string, formData: FormData, method: "POST" | "DELETE" = "POST"): Promise<T> {
+  const res = await fetch(url, { method, credentials: "include", body: formData });
+  const contentType = res.headers.get("content-type") || "";
+  const body = contentType.includes("application/json") ? await res.json() : undefined;
+  if (!res.ok) {
+    throw new ApiError(res.status, (body as any)?.message || res.statusText || "Something went wrong");
+  }
+  return body as T;
+}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import Modal from "@/components/Modal";
 import { THEME_EMOJIS } from "@/lib/emoji";
 import { useInvitationActions, useInvitationPrice } from "@/hooks/useInvitations";
+import { useCouple } from "@/hooks/useCouple";
 import { ApiError } from "@/lib/api";
 
 function todayStr() {
@@ -13,8 +14,9 @@ function formatMoney(amountMinor: number, currency: string) {
 }
 
 export default function CreateInvitationModal({ onClose }: { onClose: () => void }) {
-  const { checkout } = useInvitationActions();
+  const { checkout, useCredit } = useInvitationActions();
   const { data: price } = useInvitationPrice();
+  const { data: coupleData } = useCouple();
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(todayStr());
   const [time, setTime] = useState("19:00");
@@ -22,17 +24,26 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
   const [note, setNote] = useState("");
   const [emoji, setEmoji] = useState(THEME_EMOJIS[0].emoji);
   const [error, setError] = useState<string | null>(null);
+  const [payWithToken, setPayWithToken] = useState(false);
 
   const priceLabel = price ? formatMoney(price.amount, price.currency) : "£1.99";
+  const credits = coupleData?.couple?.credits ?? 0;
+  const willUseToken = payWithToken && credits > 0;
+  const pending = checkout.isPending || useCredit.isPending;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     try {
+      if (willUseToken) {
+        await useCredit.mutateAsync({ title, date, time, location, note, emoji });
+        onClose();
+        return;
+      }
       const { url } = await checkout.mutateAsync({ title, date, time, location, note, emoji });
       window.location.href = url;
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't start checkout");
+      setError(err instanceof ApiError ? err.message : "Couldn't send invitation");
     }
   }
 
@@ -116,18 +127,42 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
           />
         </div>
 
+        {credits > 0 && (
+          <label className="flex items-center gap-2.5 bg-sunset-100 rounded-xl px-3 py-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-terracotta-500"
+              checked={payWithToken}
+              onChange={(e) => setPayWithToken(e.target.checked)}
+            />
+            <span className="text-sm text-terracotta-600">
+              Use a date token instead 🎟️ <span className="text-terracotta-400">(you have {credits})</span>
+            </span>
+          </label>
+        )}
+
         {error && <p className="text-sm text-blush-600 bg-blush-50 rounded-xl px-3 py-2">{error}</p>}
 
-        {price && !price.paymentsEnabled && (
+        {!willUseToken && price && !price.paymentsEnabled && (
           <p className="text-sm text-terracotta-500 bg-sunset-100 rounded-xl px-3 py-2">
             Payments aren't set up on this server yet, so invitations can't be sent. Add a Stripe secret key to get going.
           </p>
         )}
 
-        <button type="submit" className="btn-primary w-full" disabled={checkout.isPending || (price ? !price.paymentsEnabled : false)}>
-          {checkout.isPending ? "Redirecting to checkout…" : `Pay ${priceLabel} & send invitation 💌`}
+        <button
+          type="submit"
+          className="btn-primary w-full"
+          disabled={pending || (!willUseToken && price ? !price.paymentsEnabled : false)}
+        >
+          {pending
+            ? "Sending…"
+            : willUseToken
+              ? "Send invitation with a token 🎟️"
+              : `Pay ${priceLabel} & send invitation 💌`}
         </button>
-        <p className="text-xs text-terracotta-300 text-center">You'll pay securely via Stripe, then your invite gets sent.</p>
+        <p className="text-xs text-terracotta-300 text-center">
+          {willUseToken ? "No charge — this uses one of your date tokens." : "You'll pay securely via Stripe, then your invite gets sent."}
+        </p>
       </form>
     </Modal>
   );

@@ -1,10 +1,19 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { createInvitationSchema, respondInvitationSchema, createMemorySchema, INVITATION_PRICE_MINOR, INVITATION_PRICE_CURRENCY } from "../../shared/schema";
+import {
+  createInvitationSchema,
+  respondInvitationSchema,
+  createMemorySchema,
+  INVITATION_PRICE_MINOR,
+  INVITATION_PRICE_CURRENCY,
+  MAX_MEMORY_PHOTOS,
+} from "../../shared/schema";
 import type { User } from "../../shared/schema";
 import { requireAuth, requireCouple } from "../middleware";
 import { paymentsEnabled, stripe } from "../stripe";
 import { createInvitationCheckoutSession, fulfillPayment } from "../payments";
+import { reconcilePastDateCredits } from "../credits";
+import { photoUpload, deleteUploadedFile } from "../uploads";
 
 const router = Router();
 
@@ -12,6 +21,7 @@ router.use(requireAuth, requireCouple);
 
 router.get("/", async (req, res) => {
   const user = req.user as User;
+  await reconcilePastDateCredits(user.coupleId!);
   const list = await storage.getInvitationsForCouple(user.coupleId!);
   res.json({ invitations: list });
 });
@@ -56,6 +66,47 @@ router.post("/checkout", async (req, res) => {
     console.error("Failed to create checkout session", err);
     res.status(502).json({ message: "Couldn't start checkout with Stripe. Please try again." });
   }
+});
+
+// Spends one date token instead of paying — same invitation shape as the paid path,
+// created directly since there's no external payment to wait on.
+router.post("/use-credit", async (req, res) => {
+  const user = req.user as User;
+  const parsed = createInvitationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+  const partner = await storage.getPartner(user);
+  if (!partner) {
+    return res.status(400).json({ message: "Waiting for your partner to join before you can send invitations" });
+  }
+
+  const spent = await storage.spendCoupleCredit(user.coupleId!);
+  if (!spent) {
+    return res.status(400).json({ message: "You don't have any date tokens to spend yet" });
+  }
+
+  const invite = await storage.createInvitation({
+    coupleId: user.coupleId!,
+    senderId: user.id,
+    recipientId: partner.id,
+    title: parsed.data.title,
+    date: parsed.data.date,
+    time: parsed.data.time,
+    location: parsed.data.location || undefined,
+    note: parsed.data.note || undefined,
+    emoji: parsed.data.emoji,
+    paidWithCredit: true,
+  });
+
+  await storage.createNotification({
+    userId: partner.id,
+    type: "invite_received",
+    message: `${user.name} sent you a date invite: "${invite.title}" ${invite.emoji}`,
+    invitationId: invite.id,
+  });
+
+  res.status(201).json({ invitation: invite });
 });
 
 // Fallback fulfillment for local dev / when the webhook hasn't landed yet: the browser
@@ -138,10 +189,18 @@ router.post("/:id/respond", async (req, res) => {
 
   if (parsed.data.action === "decline") {
     await storage.updateInvitation(invite.id, { status: "declined", respondedAt: Date.now() });
+    // No real refunds — the sender gets a date token back instead, usable on a future invite.
+    await storage.incrementCoupleCredits(invite.coupleId, 1);
     await storage.createNotification({
       userId: otherUserId,
       type: "invite_declined",
       message: `${user.name} declined "${invite.title}"`,
+      invitationId: invite.id,
+    });
+    await storage.createNotification({
+      userId: invite.senderId,
+      type: "credit_earned",
+      message: `"${invite.title}" was declined, so you got a date token back 🎟️`,
       invitationId: invite.id,
     });
     const updated = await storage.getInvitationById(invite.id);
@@ -194,7 +253,65 @@ router.get("/:id/memory", async (req, res) => {
     return res.status(404).json({ message: "Invitation not found" });
   }
   const memory = await storage.getMemoryByInvitationId(invite.id);
-  res.json({ memory: memory ?? null });
+  const photos = memory ? await storage.getMemoryPhotos(memory.id) : [];
+  res.json({ memory: memory ?? null, photos: photos.map((p) => ({ id: p.id, url: `/uploads/${p.filename}` })) });
+});
+
+router.post("/:id/memory/photos", async (req, res, next) => {
+  const user = req.user as User;
+  const invite = await storage.getInvitationById(req.params.id);
+  if (!invite || invite.coupleId !== user.coupleId) {
+    return res.status(404).json({ message: "Invitation not found" });
+  }
+  if (invite.status !== "accepted") {
+    return res.status(400).json({ message: "Only accepted dates can have photos" });
+  }
+
+  photoUpload.array("photos", MAX_MEMORY_PHOTOS)(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message || "Couldn't upload those photos" });
+    }
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    if (files.length === 0) {
+      return res.status(400).json({ message: "No photos received" });
+    }
+
+    try {
+      const memory = await storage.getOrCreateMemory(invite.id);
+      const existingCount = await storage.countMemoryPhotos(memory.id);
+      if (existingCount + files.length > MAX_MEMORY_PHOTOS) {
+        files.forEach((f) => deleteUploadedFile(f.filename));
+        return res.status(400).json({ message: `You can have at most ${MAX_MEMORY_PHOTOS} photos per date` });
+      }
+
+      for (const file of files) {
+        await storage.addMemoryPhoto({ memoryId: memory.id, filename: file.filename, originalName: file.originalname });
+      }
+
+      const photos = await storage.getMemoryPhotos(memory.id);
+      res.status(201).json({ photos: photos.map((p) => ({ id: p.id, url: `/uploads/${p.filename}` })) });
+    } catch (e) {
+      files.forEach((f) => deleteUploadedFile(f.filename));
+      next(e);
+    }
+  });
+});
+
+router.delete("/:id/memory/photos/:photoId", async (req, res) => {
+  const user = req.user as User;
+  const invite = await storage.getInvitationById(req.params.id);
+  if (!invite || invite.coupleId !== user.coupleId) {
+    return res.status(404).json({ message: "Invitation not found" });
+  }
+  const memory = await storage.getMemoryByInvitationId(invite.id);
+  const photo = memory ? await storage.getMemoryPhotoById(req.params.photoId) : undefined;
+  if (!memory || !photo || photo.memoryId !== memory.id) {
+    return res.status(404).json({ message: "Photo not found" });
+  }
+
+  await storage.deleteMemoryPhoto(photo.id);
+  deleteUploadedFile(photo.filename);
+  res.json({ ok: true });
 });
 
 export default router;

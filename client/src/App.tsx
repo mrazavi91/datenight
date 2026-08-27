@@ -4,6 +4,9 @@ import AuthPage from "@/pages/AuthPage";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
 import CheckoutComplete from "@/pages/CheckoutComplete";
+import Home from "@/pages/Home";
+import About from "@/pages/About";
+import Support from "@/pages/Support";
 import { useCouple } from "@/hooks/useCouple";
 
 function FullScreenLoader() {
@@ -28,6 +31,18 @@ function RequireCouple({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Signed-out visitors land on the marketing Home page; signed-in users get the app itself.
+function RootRoute() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <FullScreenLoader />;
+  if (!user) return <Home />;
+  return (
+    <RequireCouple>
+      <Dashboard />
+    </RequireCouple>
+  );
+}
+
 export default function App() {
   const { user, isLoading } = useAuth();
 
@@ -35,6 +50,9 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<RootRoute />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/support" element={<Support />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" />} />
       <Route
@@ -50,16 +68,6 @@ export default function App() {
         element={
           <RequireAuth>
             <CheckoutComplete />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <RequireCouple>
-              <Dashboard />
-            </RequireCouple>
           </RequireAuth>
         }
       />

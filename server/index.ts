@@ -10,9 +10,11 @@ import authRoutes from "./routes/auth";
 import coupleRoutes from "./routes/couples";
 import invitationRoutes from "./routes/invitations";
 import notificationRoutes from "./routes/notifications";
+import supportRoutes from "./routes/support";
 import { setupVite, serveStatic } from "./vite";
 import { stripe, webhookSecret } from "./stripe";
 import { fulfillPayment } from "./payments";
+import { uploadsDir } from "./uploads";
 import type Stripe from "stripe";
 
 migrate();
@@ -60,6 +62,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use("/uploads", express.static(uploadsDir));
 
 const SQLiteStore = SQLiteStoreFactory(session);
 const dataDir = path.resolve(import.meta.dirname, "..", "data");
@@ -87,6 +90,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/couples", coupleRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/support", supportRoutes);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

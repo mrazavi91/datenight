@@ -34,6 +34,7 @@ export function migrate() {
       invite_code TEXT NOT NULL UNIQUE,
       user1_id TEXT NOT NULL,
       user2_id TEXT,
+      credits INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
 
@@ -54,6 +55,8 @@ export function migrate() {
       proposed_time TEXT,
       proposed_note TEXT,
       proposed_by TEXT,
+      paid_with_credit INTEGER NOT NULL DEFAULT 0,
+      credit_awarded INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       responded_at INTEGER
     );
@@ -63,6 +66,24 @@ export function migrate() {
       invitation_id TEXT NOT NULL UNIQUE,
       note TEXT,
       rating INTEGER,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS memory_photos (
+      id TEXT PRIMARY KEY,
+      memory_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      original_name TEXT,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS support_requests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
       created_at INTEGER NOT NULL
     );
 
@@ -94,5 +115,19 @@ export function migrate() {
     CREATE INDEX IF NOT EXISTS idx_invitations_couple ON invitations(couple_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_payments_couple ON payments(couple_id);
+    CREATE INDEX IF NOT EXISTS idx_memory_photos_memory ON memory_photos(memory_id);
   `);
+
+  // SQLite has no "ADD COLUMN IF NOT EXISTS" — for databases created before a column
+  // existed, add it by hand so upgrades don't require wiping data/.
+  ensureColumn("couples", "credits", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("invitations", "paid_with_credit", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("invitations", "credit_awarded", "INTEGER NOT NULL DEFAULT 0");
+}
+
+function ensureColumn(table: string, column: string, definition: string) {
+  const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) {
+    sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }

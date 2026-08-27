@@ -3,7 +3,7 @@ import { api, apiPost } from "@/lib/api";
 import type { PublicUser } from "@shared/schema";
 
 interface CoupleResponse {
-  couple: { id: string; inviteCode: string; paired: boolean } | null;
+  couple: { id: string; inviteCode: string; paired: boolean; credits: number } | null;
   partner: PublicUser | null;
 }
 

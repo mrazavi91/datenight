@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCouple } from "@/hooks/useCouple";
 import { useInvitations } from "@/hooks/useInvitations";
@@ -113,6 +113,16 @@ export default function Dashboard() {
             ))}
           </Section>
         )}
+
+        <div className="flex items-center justify-center gap-4 text-sm text-terracotta-300 pt-4">
+          <Link to="/about" className="hover:text-terracotta-500">
+            About
+          </Link>
+          <span>·</span>
+          <Link to="/support" className="hover:text-terracotta-500">
+            Support
+          </Link>
+        </div>
       </main>
 
       <button
