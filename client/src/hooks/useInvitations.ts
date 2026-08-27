@@ -31,9 +31,8 @@ export function useInvitationActions() {
     queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
   };
 
-  const create = useMutation({
-    mutationFn: (input: CreateInvitationInput) => apiPost<{ invitation: Invitation }>("/api/invitations", input),
-    onSuccess: invalidate,
+  const checkout = useMutation({
+    mutationFn: (input: CreateInvitationInput) => apiPost<{ url: string }>("/api/invitations/checkout", input),
   });
 
   const respond = useMutation({
@@ -48,5 +47,13 @@ export function useInvitationActions() {
     onSuccess: invalidate,
   });
 
-  return { create, respond, saveMemory };
+  return { checkout, respond, saveMemory };
+}
+
+export function useInvitationPrice() {
+  return useQuery({
+    queryKey: ["/api/invitations/price"],
+    queryFn: () => api<{ amount: number; currency: string; paymentsEnabled: boolean }>("/api/invitations/price"),
+    staleTime: 5 * 60_000,
+  });
 }

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCouple } from "@/hooks/useCouple";
 import { useInvitations } from "@/hooks/useInvitations";
@@ -31,6 +32,19 @@ export default function Dashboard() {
   const { data: coupleData } = useCouple();
   const { data: inviteData, isLoading } = useInvitations();
   const [showCreate, setShowCreate] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showCancelledNotice, setShowCancelledNotice] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("checkout") === "cancelled") {
+      setShowCancelledNotice(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("checkout");
+      setSearchParams(next, { replace: true });
+      const t = setTimeout(() => setShowCancelledNotice(false), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams]);
 
   if (!user || isLoading) {
     return (
@@ -48,6 +62,14 @@ export default function Dashboard() {
     <div className="min-h-screen pb-28">
       <Header />
       <ToastWatcher />
+
+      {showCancelledNotice && (
+        <div className="max-w-3xl mx-auto px-4 pt-4">
+          <div className="card px-4 py-3 border-blush-200 text-sm text-terracotta-600 animate-pop-in">
+            Checkout cancelled — no charge was made, and your invitation wasn't sent.
+          </div>
+        </div>
+      )}
 
       <main className="max-w-3xl mx-auto px-4 pt-6">
         <div className="mb-6">

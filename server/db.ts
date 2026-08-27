@@ -76,7 +76,23 @@ export function migrate() {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS payments (
+      id TEXT PRIMARY KEY,
+      stripe_session_id TEXT UNIQUE,
+      couple_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      recipient_id TEXT NOT NULL,
+      pending_data TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'gbp',
+      status TEXT NOT NULL DEFAULT 'pending',
+      invitation_id TEXT,
+      created_at INTEGER NOT NULL,
+      fulfilled_at INTEGER
+    );
+
     CREATE INDEX IF NOT EXISTS idx_invitations_couple ON invitations(couple_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_couple ON payments(couple_id);
   `);
 }

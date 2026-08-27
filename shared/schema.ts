@@ -61,6 +61,21 @@ export const notifications = sqliteTable("notifications", {
   createdAt: integer("created_at").notNull(),
 });
 
+export const payments = sqliteTable("payments", {
+  id: text("id").primaryKey(),
+  stripeSessionId: text("stripe_session_id").unique(),
+  coupleId: text("couple_id").notNull(),
+  senderId: text("sender_id").notNull(),
+  recipientId: text("recipient_id").notNull(),
+  pendingData: text("pending_data").notNull(), // JSON-encoded invitation fields, applied on fulfillment
+  amount: integer("amount").notNull(), // in minor units (pence)
+  currency: text("currency").notNull().default("gbp"),
+  status: text("status").notNull().default("pending"), // pending | paid | cancelled
+  invitationId: text("invitation_id"),
+  createdAt: integer("created_at").notNull(),
+  fulfilledAt: integer("fulfilled_at"),
+});
+
 // ----- Zod validation schemas -----
 
 export const signupSchema = z.object({
@@ -103,11 +118,15 @@ export const createMemorySchema = z.object({
   rating: z.number().int().min(1).max(5).optional(),
 });
 
+export const INVITATION_PRICE_MINOR = 199; // £1.99
+export const INVITATION_PRICE_CURRENCY = "gbp";
+
 export type User = typeof users.$inferSelect;
 export type Couple = typeof couples.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Memory = typeof memories.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
 
 export const insertUserSchema = createInsertSchema(users);
 export const insertInvitationSchema = createInsertSchema(invitations);

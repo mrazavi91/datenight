@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import AuthPage from "@/pages/AuthPage";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
+import CheckoutComplete from "@/pages/CheckoutComplete";
 import { useCouple } from "@/hooks/useCouple";
 
 function FullScreenLoader() {
@@ -41,6 +42,14 @@ export default function App() {
         element={
           <RequireAuth>
             <Onboarding />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/checkout/complete"
+        element={
+          <RequireAuth>
+            <CheckoutComplete />
           </RequireAuth>
         }
       />

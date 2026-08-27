@@ -1,15 +1,20 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
 import { THEME_EMOJIS } from "@/lib/emoji";
-import { useInvitationActions } from "@/hooks/useInvitations";
+import { useInvitationActions, useInvitationPrice } from "@/hooks/useInvitations";
 import { ApiError } from "@/lib/api";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function formatMoney(amountMinor: number, currency: string) {
+  return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amountMinor / 100);
+}
+
 export default function CreateInvitationModal({ onClose }: { onClose: () => void }) {
-  const { create } = useInvitationActions();
+  const { checkout } = useInvitationActions();
+  const { data: price } = useInvitationPrice();
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(todayStr());
   const [time, setTime] = useState("19:00");
@@ -18,14 +23,16 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
   const [emoji, setEmoji] = useState(THEME_EMOJIS[0].emoji);
   const [error, setError] = useState<string | null>(null);
 
+  const priceLabel = price ? formatMoney(price.amount, price.currency) : "£1.99";
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      await create.mutateAsync({ title, date, time, location, note, emoji });
-      onClose();
+      const { url } = await checkout.mutateAsync({ title, date, time, location, note, emoji });
+      window.location.href = url;
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't send invite");
+      setError(err instanceof ApiError ? err.message : "Couldn't start checkout");
     }
   }
 
@@ -111,9 +118,16 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
 
         {error && <p className="text-sm text-blush-600 bg-blush-50 rounded-xl px-3 py-2">{error}</p>}
 
-        <button type="submit" className="btn-primary w-full" disabled={create.isPending}>
-          {create.isPending ? "Sending…" : "Send invitation 💌"}
+        {price && !price.paymentsEnabled && (
+          <p className="text-sm text-terracotta-500 bg-sunset-100 rounded-xl px-3 py-2">
+            Payments aren't set up on this server yet, so invitations can't be sent. Add a Stripe secret key to get going.
+          </p>
+        )}
+
+        <button type="submit" className="btn-primary w-full" disabled={checkout.isPending || (price ? !price.paymentsEnabled : false)}>
+          {checkout.isPending ? "Redirecting to checkout…" : `Pay ${priceLabel} & send invitation 💌`}
         </button>
+        <p className="text-xs text-terracotta-300 text-center">You'll pay securely via Stripe, then your invite gets sent.</p>
       </form>
     </Modal>
   );

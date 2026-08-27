@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { createInvitationSchema, respondInvitationSchema, createMemorySchema } from "../../shared/schema";
+import { createInvitationSchema, respondInvitationSchema, createMemorySchema, INVITATION_PRICE_MINOR, INVITATION_PRICE_CURRENCY } from "../../shared/schema";
 import type { User } from "../../shared/schema";
 import { requireAuth, requireCouple } from "../middleware";
+import { paymentsEnabled, stripe } from "../stripe";
+import { createInvitationCheckoutSession, fulfillPayment } from "../payments";
 
 const router = Router();
 
@@ -14,8 +16,17 @@ router.get("/", async (req, res) => {
   res.json({ invitations: list });
 });
 
-router.post("/", async (req, res) => {
+router.get("/price", (_req, res) => {
+  res.json({ amount: INVITATION_PRICE_MINOR, currency: INVITATION_PRICE_CURRENCY, paymentsEnabled });
+});
+
+// Starts a Stripe Checkout session for £1.99. The invitation itself is only created once
+// payment succeeds (via the webhook, or the /checkout/complete fallback below).
+router.post("/checkout", async (req, res) => {
   const user = req.user as User;
+  if (!paymentsEnabled) {
+    return res.status(503).json({ message: "Payments aren't configured on this server yet. Set STRIPE_SECRET_KEY." });
+  }
   const parsed = createInvitationSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
@@ -25,26 +36,64 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ message: "Waiting for your partner to join before you can send invitations" });
   }
 
-  const invite = await storage.createInvitation({
-    coupleId: user.coupleId!,
-    senderId: user.id,
-    recipientId: partner.id,
-    title: parsed.data.title,
-    date: parsed.data.date,
-    time: parsed.data.time,
-    location: parsed.data.location || undefined,
-    note: parsed.data.note || undefined,
-    emoji: parsed.data.emoji,
-  });
+  const origin = `${req.protocol}://${req.get("host")}`;
+  try {
+    const { url } = await createInvitationCheckoutSession({
+      sender: user,
+      recipient: partner,
+      origin,
+      invitation: {
+        title: parsed.data.title,
+        date: parsed.data.date,
+        time: parsed.data.time,
+        location: parsed.data.location || undefined,
+        note: parsed.data.note || undefined,
+        emoji: parsed.data.emoji,
+      },
+    });
+    res.json({ url });
+  } catch (err) {
+    console.error("Failed to create checkout session", err);
+    res.status(502).json({ message: "Couldn't start checkout with Stripe. Please try again." });
+  }
+});
 
-  await storage.createNotification({
-    userId: partner.id,
-    type: "invite_received",
-    message: `${user.name} sent you a date invite: "${invite.title}" ${invite.emoji}`,
-    invitationId: invite.id,
-  });
+// Fallback fulfillment for local dev / when the webhook hasn't landed yet: the browser
+// hits this right after Stripe redirects back, so the invite shows up even without a
+// webhook configured. The webhook (server/index.ts) is the reliable path in production.
+router.get("/checkout/complete", async (req, res) => {
+  const user = req.user as User;
+  const sessionId = String(req.query.session_id || "");
+  if (!sessionId || !stripe) {
+    return res.status(400).json({ message: "Missing session" });
+  }
 
-  res.status(201).json({ invitation: invite });
+  const payment = await storage.getPaymentByStripeSessionId(sessionId);
+  if (!payment || payment.coupleId !== user.coupleId) {
+    return res.status(404).json({ message: "Checkout session not found" });
+  }
+
+  if (!payment.invitationId) {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status !== "paid") {
+      return res.status(402).json({ message: "Payment not completed" });
+    }
+    await fulfillPayment(payment.id);
+  }
+
+  // Give a concurrent webhook a brief moment to finish claiming/creating if we lost the race.
+  let final = await storage.getPaymentById(payment.id);
+  for (let i = 0; i < 5 && final && !final.invitationId; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    final = await storage.getPaymentById(payment.id);
+  }
+
+  if (!final?.invitationId) {
+    return res.status(202).json({ message: "Payment received, still finalizing your invite. Refresh in a moment." });
+  }
+
+  const invite = await storage.getInvitationById(final.invitationId);
+  res.json({ invitation: invite });
 });
 
 router.post("/:id/respond", async (req, res) => {

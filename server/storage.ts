@@ -1,7 +1,20 @@
 import { eq, or, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "./db";
-import { users, couples, invitations, memories, notifications, type User, type Couple, type Invitation, type Memory, type Notification } from "../shared/schema";
+import {
+  users,
+  couples,
+  invitations,
+  memories,
+  notifications,
+  payments,
+  type User,
+  type Couple,
+  type Invitation,
+  type Memory,
+  type Notification,
+  type Payment,
+} from "../shared/schema";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
 
@@ -158,5 +171,51 @@ export const storage = {
   },
   async markAllNotificationsRead(userId: string): Promise<void> {
     db.update(notifications).set({ isRead: 1 }).where(eq(notifications.userId, userId)).run();
+  },
+
+  // ----- Payments -----
+  async createPayment(data: {
+    coupleId: string;
+    senderId: string;
+    recipientId: string;
+    pendingData: string;
+    amount: number;
+    currency: string;
+  }): Promise<Payment> {
+    const payment: Payment = {
+      id: nanoid(),
+      stripeSessionId: null,
+      coupleId: data.coupleId,
+      senderId: data.senderId,
+      recipientId: data.recipientId,
+      pendingData: data.pendingData,
+      amount: data.amount,
+      currency: data.currency,
+      status: "pending",
+      invitationId: null,
+      createdAt: Date.now(),
+      fulfilledAt: null,
+    };
+    db.insert(payments).values(payment).run();
+    return payment;
+  },
+  async getPaymentById(id: string): Promise<Payment | undefined> {
+    return db.select().from(payments).where(eq(payments.id, id)).get();
+  },
+  async getPaymentByStripeSessionId(sessionId: string): Promise<Payment | undefined> {
+    return db.select().from(payments).where(eq(payments.stripeSessionId, sessionId)).get();
+  },
+  async updatePayment(id: string, patch: Partial<Payment>): Promise<void> {
+    db.update(payments).set(patch).where(eq(payments.id, id)).run();
+  },
+  // Atomically transitions a payment from pending -> paid. Returns true only for the
+  // caller that wins the race, so concurrent webhook + success-page calls can't both fulfill.
+  async claimPaymentForFulfillment(id: string): Promise<boolean> {
+    const result = db
+      .update(payments)
+      .set({ status: "paid", fulfilledAt: Date.now() })
+      .where(and(eq(payments.id, id), eq(payments.status, "pending")))
+      .run();
+    return result.changes > 0;
   },
 };
