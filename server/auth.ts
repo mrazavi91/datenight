@@ -60,11 +60,13 @@ if (googleAuthEnabled) {
           if (email) {
             user = await storage.getUserByEmail(email);
             if (user) {
-              // Link Google to an existing email/password account
+              // Link Google to an existing email/password account. Google has already
+              // verified this address, so treat it as confirmed too if it wasn't yet.
               await storage.updateUser(user.id, {
                 googleId: profile.id,
                 authProvider: user.authProvider === "email" ? "both" : user.authProvider,
                 avatarUrl: user.avatarUrl ?? avatarUrl,
+                emailVerifiedAt: user.emailVerifiedAt ?? Date.now(),
               });
               user = await storage.getUserById(user.id);
               return done(null, user);
@@ -77,6 +79,8 @@ if (googleAuthEnabled) {
             googleId: profile.id,
             authProvider: "google",
             avatarUrl,
+            // Only trust this as pre-verified if Google actually returned a real email.
+            emailVerifiedAt: email ? Date.now() : null,
           });
           return done(null, newUser);
         } catch (err) {

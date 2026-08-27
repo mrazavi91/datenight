@@ -3,6 +3,8 @@ import { Navigate } from "react-router-dom";
 import { useCouple, useCoupleActions } from "@/hooks/useCouple";
 import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
+import CreateOneTimeInviteModal from "@/components/CreateOneTimeInviteModal";
+import OneTimeInvitesList from "@/components/OneTimeInvitesList";
 
 export default function Onboarding() {
   const { user, logout } = useAuth();
@@ -11,6 +13,7 @@ export default function Onboarding() {
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showOneTime, setShowOneTime] = useState(false);
 
   if (isLoading) return null;
   if (data?.couple?.paired) return <Navigate to="/" replace />;
@@ -103,10 +106,33 @@ export default function Onboarding() {
 
         {error && <p className="text-sm text-blush-600 bg-blush-50 rounded-xl px-3 py-2 mt-4 text-center">{error}</p>}
 
+        <div className="mt-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px bg-blush-100 flex-1" />
+            <span className="text-xs text-terracotta-300 font-semibold">OR</span>
+            <div className="h-px bg-blush-100 flex-1" />
+          </div>
+          <div className="card p-5 text-center">
+            <div className="text-2xl mb-1">👋</div>
+            <h2 className="font-display font-bold text-terracotta-700">Just met someone?</h2>
+            <p className="text-sm text-terracotta-400 mt-1 mb-3">
+              Send a one-time first-date invite — no couple space needed, no account needed for them to respond.
+            </p>
+            <button onClick={() => setShowOneTime(true)} className="btn-secondary w-full">
+              Send a first-date request
+            </button>
+          </div>
+          <div className="mt-3">
+            <OneTimeInvitesList />
+          </div>
+        </div>
+
         <button onClick={() => logout.mutate()} className="btn-ghost w-full mt-6 text-sm">
           Log out
         </button>
       </div>
+
+      {showOneTime && <CreateOneTimeInviteModal onClose={() => setShowOneTime(false)} />}
     </div>
   );
 }

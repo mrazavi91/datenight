@@ -12,10 +12,16 @@ import invitationRoutes from "./routes/invitations";
 import notificationRoutes from "./routes/notifications";
 import supportRoutes from "./routes/support";
 import { setupVite, serveStatic } from "./vite";
+import oneTimeInvitationRoutes from "./routes/oneTimeInvitations";
 import { stripe, webhookSecret } from "./stripe";
 import { fulfillPayment } from "./payments";
+import { fulfillOneTimePayment } from "./oneTimeInvitations";
 import { uploadsDir } from "./uploads";
 import type Stripe from "stripe";
+
+// Used only for webhook-triggered fulfillment (no browser request to read an origin from) —
+// the synchronous /checkout/complete fallback paths use the real request origin instead.
+const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 5000}`;
 
 migrate();
 
@@ -47,10 +53,13 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const paymentId = session.client_reference_id;
-    if (paymentId && session.payment_status === "paid") {
+    if (session.payment_status === "paid") {
       try {
-        await fulfillPayment(paymentId);
+        if (session.metadata?.oneTimePaymentId) {
+          await fulfillOneTimePayment(session.metadata.oneTimePaymentId, PUBLIC_URL);
+        } else if (session.client_reference_id) {
+          await fulfillPayment(session.client_reference_id);
+        }
       } catch (err) {
         console.error("Failed to fulfill payment from webhook", err);
       }
@@ -91,6 +100,7 @@ app.use("/api/couples", coupleRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/one-time-invitations", oneTimeInvitationRoutes);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

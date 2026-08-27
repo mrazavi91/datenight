@@ -10,6 +10,8 @@ import {
   notifications,
   payments,
   supportRequests,
+  oneTimeInvitations,
+  oneTimePayments,
   type User,
   type Couple,
   type Invitation,
@@ -18,6 +20,8 @@ import {
   type Notification,
   type Payment,
   type SupportRequest,
+  type OneTimeInvitation,
+  type OneTimePayment,
 } from "../shared/schema";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
@@ -41,7 +45,17 @@ export const storage = {
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
     return db.select().from(users).where(eq(users.googleId, googleId)).get();
   },
-  async createUser(data: { name: string; email: string; passwordHash?: string | null; googleId?: string | null; authProvider: string; avatarUrl?: string | null }): Promise<User> {
+  async createUser(data: {
+    name: string;
+    email: string;
+    passwordHash?: string | null;
+    googleId?: string | null;
+    authProvider: string;
+    avatarUrl?: string | null;
+    emailVerifiedAt?: number | null;
+    verificationToken?: string | null;
+    verificationTokenExpiresAt?: number | null;
+  }): Promise<User> {
     const user: User = {
       id: nanoid(),
       name: data.name,
@@ -51,6 +65,10 @@ export const storage = {
       authProvider: data.authProvider,
       avatarUrl: data.avatarUrl ?? null,
       coupleId: null,
+      emailVerifiedAt: data.emailVerifiedAt ?? null,
+      verificationToken: data.verificationToken ?? null,
+      verificationTokenExpiresAt: data.verificationTokenExpiresAt ?? null,
+      oneTimeCredits: 0,
       createdAt: Date.now(),
     };
     db.insert(users).values(user).run();
@@ -58,6 +76,20 @@ export const storage = {
   },
   async updateUser(id: string, patch: Partial<User>): Promise<void> {
     db.update(users).set(patch).where(eq(users.id, id)).run();
+  },
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    return db.select().from(users).where(eq(users.verificationToken, token)).get();
+  },
+  async incrementOneTimeCredits(userId: string, delta: number): Promise<void> {
+    db.update(users).set({ oneTimeCredits: sql`${users.oneTimeCredits} + ${delta}` }).where(eq(users.id, userId)).run();
+  },
+  async spendOneTimeCredit(userId: string): Promise<boolean> {
+    const result = db
+      .update(users)
+      .set({ oneTimeCredits: sql`${users.oneTimeCredits} - 1` })
+      .where(and(eq(users.id, userId), sql`${users.oneTimeCredits} > 0`))
+      .run();
+    return result.changes > 0;
   },
 
   // ----- Couples -----
@@ -311,5 +343,114 @@ export const storage = {
     };
     db.insert(supportRequests).values(request).run();
     return request;
+  },
+
+  // ----- One-time invitations -----
+  async createOneTimeInvitation(data: {
+    senderId: string;
+    recipientEmail: string;
+    recipientName?: string;
+    title: string;
+    date: string;
+    time: string;
+    location?: string;
+    note?: string;
+    emoji: string;
+    paidWithCredit?: boolean;
+    responseToken: string;
+    expiresAt: number;
+  }): Promise<OneTimeInvitation> {
+    const invite: OneTimeInvitation = {
+      id: nanoid(),
+      senderId: data.senderId,
+      recipientEmail: data.recipientEmail.toLowerCase(),
+      recipientName: data.recipientName || null,
+      title: data.title,
+      date: data.date,
+      time: data.time,
+      location: data.location || null,
+      note: data.note || null,
+      emoji: data.emoji,
+      status: "pending",
+      responseToken: data.responseToken,
+      paidWithCredit: data.paidWithCredit ? 1 : 0,
+      creditAwarded: 0,
+      createdAt: Date.now(),
+      respondedAt: null,
+      expiresAt: data.expiresAt,
+    };
+    db.insert(oneTimeInvitations).values(invite).run();
+    return invite;
+  },
+  async getOneTimeInvitationById(id: string): Promise<OneTimeInvitation | undefined> {
+    return db.select().from(oneTimeInvitations).where(eq(oneTimeInvitations.id, id)).get();
+  },
+  async getOneTimeInvitationByToken(token: string): Promise<OneTimeInvitation | undefined> {
+    return db.select().from(oneTimeInvitations).where(eq(oneTimeInvitations.responseToken, token)).get();
+  },
+  async getOneTimeInvitationsForSender(senderId: string): Promise<OneTimeInvitation[]> {
+    return db.select().from(oneTimeInvitations).where(eq(oneTimeInvitations.senderId, senderId)).orderBy(desc(oneTimeInvitations.createdAt)).all();
+  },
+  async updateOneTimeInvitation(id: string, patch: Partial<OneTimeInvitation>): Promise<void> {
+    db.update(oneTimeInvitations).set(patch).where(eq(oneTimeInvitations.id, id)).run();
+  },
+  // Atomically moves a one-time invite off "pending" so a double-submit can't respond twice.
+  async claimOneTimeInvitationResponse(id: string): Promise<boolean> {
+    const result = db
+      .update(oneTimeInvitations)
+      .set({ respondedAt: Date.now() })
+      .where(and(eq(oneTimeInvitations.id, id), eq(oneTimeInvitations.status, "pending")))
+      .run();
+    return result.changes > 0;
+  },
+  async getUnawardedAcceptedOneTimeInvitations(senderId: string): Promise<OneTimeInvitation[]> {
+    return db
+      .select()
+      .from(oneTimeInvitations)
+      .where(and(eq(oneTimeInvitations.senderId, senderId), eq(oneTimeInvitations.status, "accepted"), eq(oneTimeInvitations.creditAwarded, 0)))
+      .all();
+  },
+  async claimOneTimeInvitationCreditAward(id: string): Promise<boolean> {
+    const result = db
+      .update(oneTimeInvitations)
+      .set({ creditAwarded: 1 })
+      .where(and(eq(oneTimeInvitations.id, id), eq(oneTimeInvitations.creditAwarded, 0)))
+      .run();
+    return result.changes > 0;
+  },
+
+  // ----- One-time payments -----
+  async createOneTimePayment(data: { senderId: string; pendingData: string; amount: number; currency: string }): Promise<OneTimePayment> {
+    const payment: OneTimePayment = {
+      id: nanoid(),
+      stripeSessionId: null,
+      senderId: data.senderId,
+      pendingData: data.pendingData,
+      amount: data.amount,
+      currency: data.currency,
+      status: "pending",
+      oneTimeInvitationId: null,
+      createdAt: Date.now(),
+      fulfilledAt: null,
+    };
+    db.insert(oneTimePayments).values(payment).run();
+    return payment;
+  },
+  async getOneTimePaymentById(id: string): Promise<OneTimePayment | undefined> {
+    return db.select().from(oneTimePayments).where(eq(oneTimePayments.id, id)).get();
+  },
+  async getOneTimePaymentByStripeSessionId(sessionId: string): Promise<OneTimePayment | undefined> {
+    return db.select().from(oneTimePayments).where(eq(oneTimePayments.stripeSessionId, sessionId)).get();
+  },
+  async updateOneTimePayment(id: string, patch: Partial<OneTimePayment>): Promise<void> {
+    db.update(oneTimePayments).set(patch).where(eq(oneTimePayments.id, id)).run();
+  },
+  async claimOneTimePaymentForFulfillment(id: string): Promise<boolean> {
+    const result = db
+      .update(oneTimePayments)
+      .set({ status: "paid", fulfilledAt: Date.now() })
+      .where(and(eq(oneTimePayments.id, id), eq(oneTimePayments.status, "pending")))
+      .run();
+    return result.changes > 0;
   },
 };

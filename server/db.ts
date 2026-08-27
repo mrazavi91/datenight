@@ -26,6 +26,10 @@ export function migrate() {
       auth_provider TEXT NOT NULL DEFAULT 'email',
       avatar_url TEXT,
       couple_id TEXT,
+      email_verified_at INTEGER,
+      verification_token TEXT UNIQUE,
+      verification_token_expires_at INTEGER,
+      one_time_credits INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
 
@@ -97,6 +101,39 @@ export function migrate() {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS one_time_invitations (
+      id TEXT PRIMARY KEY,
+      sender_id TEXT NOT NULL,
+      recipient_email TEXT NOT NULL,
+      recipient_name TEXT,
+      title TEXT NOT NULL,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      location TEXT,
+      note TEXT,
+      emoji TEXT NOT NULL DEFAULT '💕',
+      status TEXT NOT NULL DEFAULT 'pending',
+      response_token TEXT NOT NULL UNIQUE,
+      paid_with_credit INTEGER NOT NULL DEFAULT 0,
+      credit_awarded INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      responded_at INTEGER,
+      expires_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS one_time_payments (
+      id TEXT PRIMARY KEY,
+      stripe_session_id TEXT UNIQUE,
+      sender_id TEXT NOT NULL,
+      pending_data TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'gbp',
+      status TEXT NOT NULL DEFAULT 'pending',
+      one_time_invitation_id TEXT,
+      created_at INTEGER NOT NULL,
+      fulfilled_at INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS payments (
       id TEXT PRIMARY KEY,
       stripe_session_id TEXT UNIQUE,
@@ -116,6 +153,7 @@ export function migrate() {
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_payments_couple ON payments(couple_id);
     CREATE INDEX IF NOT EXISTS idx_memory_photos_memory ON memory_photos(memory_id);
+    CREATE INDEX IF NOT EXISTS idx_one_time_invitations_sender ON one_time_invitations(sender_id);
   `);
 
   // SQLite has no "ADD COLUMN IF NOT EXISTS" — for databases created before a column
@@ -123,6 +161,10 @@ export function migrate() {
   ensureColumn("couples", "credits", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("invitations", "paid_with_credit", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("invitations", "credit_awarded", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("users", "email_verified_at", "INTEGER");
+  ensureColumn("users", "verification_token", "TEXT");
+  ensureColumn("users", "verification_token_expires_at", "INTEGER");
+  ensureColumn("users", "one_time_credits", "INTEGER NOT NULL DEFAULT 0");
 }
 
 function ensureColumn(table: string, column: string, definition: string) {

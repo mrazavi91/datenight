@@ -4,9 +4,12 @@ import AuthPage from "@/pages/AuthPage";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
 import CheckoutComplete from "@/pages/CheckoutComplete";
+import OneTimeCheckoutComplete from "@/pages/OneTimeCheckoutComplete";
+import OneTimeInviteResponse from "@/pages/OneTimeInviteResponse";
 import Home from "@/pages/Home";
 import About from "@/pages/About";
 import Support from "@/pages/Support";
+import VerifyEmail from "@/pages/VerifyEmail";
 import { useCouple } from "@/hooks/useCouple";
 
 function FullScreenLoader() {
@@ -53,6 +56,8 @@ export default function App() {
       <Route path="/" element={<RootRoute />} />
       <Route path="/about" element={<About />} />
       <Route path="/support" element={<Support />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/first-date/:token" element={<OneTimeInviteResponse />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" />} />
       <Route
@@ -68,6 +73,14 @@ export default function App() {
         element={
           <RequireAuth>
             <CheckoutComplete />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/one-time/checkout/complete"
+        element={
+          <RequireAuth>
+            <OneTimeCheckoutComplete />
           </RequireAuth>
         }
       />

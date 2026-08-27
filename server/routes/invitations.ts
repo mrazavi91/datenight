@@ -17,6 +17,12 @@ import { photoUpload, deleteUploadedFile } from "../uploads";
 
 const router = Router();
 
+// Public: static pricing info, also used by the one-time-invitation flow which doesn't
+// require a couple.
+router.get("/price", (_req, res) => {
+  res.json({ amount: INVITATION_PRICE_MINOR, currency: INVITATION_PRICE_CURRENCY, paymentsEnabled });
+});
+
 router.use(requireAuth, requireCouple);
 
 router.get("/", async (req, res) => {
@@ -24,10 +30,6 @@ router.get("/", async (req, res) => {
   await reconcilePastDateCredits(user.coupleId!);
   const list = await storage.getInvitationsForCouple(user.coupleId!);
   res.json({ invitations: list });
-});
-
-router.get("/price", (_req, res) => {
-  res.json({ amount: INVITATION_PRICE_MINOR, currency: INVITATION_PRICE_CURRENCY, paymentsEnabled });
 });
 
 // Starts a Stripe Checkout session for £1.99. The invitation itself is only created once

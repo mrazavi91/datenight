@@ -3,13 +3,18 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCouple } from "@/hooks/useCouple";
 import { useInvitations } from "@/hooks/useInvitations";
+import { useOneTimeInvitations } from "@/hooks/useOneTimeInvitations";
 import { categorize } from "@/lib/invitations";
 import Header from "@/components/Header";
 import ToastWatcher from "@/components/ToastWatcher";
+import EmailVerifyBanner from "@/components/EmailVerifyBanner";
 import CreateInvitationModal from "@/components/CreateInvitationModal";
+import CreateOneTimeInviteModal from "@/components/CreateOneTimeInviteModal";
+import OneTimeInvitesList from "@/components/OneTimeInvitesList";
 import InvitationCard from "@/components/InvitationCard";
 import PastDateCard from "@/components/PastDateCard";
-import { Plus } from "lucide-react";
+import Modal from "@/components/Modal";
+import { Plus, Heart, UserPlus } from "lucide-react";
 
 function Section({ title, subtitle, children, emptyText }: { title: string; subtitle?: string; children: React.ReactNode; emptyText: string }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
@@ -31,7 +36,10 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data: coupleData } = useCouple();
   const { data: inviteData, isLoading } = useInvitations();
+  const { data: oneTimeData } = useOneTimeInvitations();
+  const [showChooser, setShowChooser] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showOneTime, setShowOneTime] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [showCancelledNotice, setShowCancelledNotice] = useState(false);
 
@@ -62,6 +70,7 @@ export default function Dashboard() {
     <div className="min-h-screen pb-28">
       <Header />
       <ToastWatcher />
+      <EmailVerifyBanner />
 
       {showCancelledNotice && (
         <div className="max-w-3xl mx-auto px-4 pt-4">
@@ -114,6 +123,12 @@ export default function Dashboard() {
           </Section>
         )}
 
+        {(oneTimeData?.invitations.length ?? 0) > 0 && (
+          <Section title="First-date requests" subtitle="One-time invites you've sent" emptyText="">
+            <OneTimeInvitesList />
+          </Section>
+        )}
+
         <div className="flex items-center justify-center gap-4 text-sm text-terracotta-300 pt-4">
           <Link to="/about" className="hover:text-terracotta-500">
             About
@@ -126,7 +141,7 @@ export default function Dashboard() {
       </main>
 
       <button
-        onClick={() => setShowCreate(true)}
+        onClick={() => setShowChooser(true)}
         className="fixed bottom-6 right-6 btn-primary !rounded-full !p-4 shadow-soft"
         aria-label="Create invitation"
       >
@@ -134,7 +149,45 @@ export default function Dashboard() {
         <span className="hidden sm:inline">New date</span>
       </button>
 
+      {showChooser && (
+        <Modal title="What kind of invite?" onClose={() => setShowChooser(false)}>
+          <div className="space-y-3">
+            <button
+              className="w-full card p-4 text-left flex items-center gap-3 hover:border-terracotta-300 border-2 border-transparent transition-colors"
+              onClick={() => {
+                setShowChooser(false);
+                setShowCreate(true);
+              }}
+            >
+              <div className="w-10 h-10 rounded-full bg-sunset-100 text-terracotta-600 flex items-center justify-center shrink-0">
+                <Heart size={18} />
+              </div>
+              <div>
+                <p className="font-semibold text-terracotta-700">Plan a date with {partner?.name?.split(" ")[0] ?? "your partner"}</p>
+                <p className="text-sm text-terracotta-400">The usual — accept, decline, or reschedule.</p>
+              </div>
+            </button>
+            <button
+              className="w-full card p-4 text-left flex items-center gap-3 hover:border-terracotta-300 border-2 border-transparent transition-colors"
+              onClick={() => {
+                setShowChooser(false);
+                setShowOneTime(true);
+              }}
+            >
+              <div className="w-10 h-10 rounded-full bg-sunset-100 text-terracotta-600 flex items-center justify-center shrink-0">
+                <UserPlus size={18} />
+              </div>
+              <div>
+                <p className="font-semibold text-terracotta-700">Meet someone new</p>
+                <p className="text-sm text-terracotta-400">A one-time first-date invite — no account needed for them.</p>
+              </div>
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {showCreate && <CreateInvitationModal onClose={() => setShowCreate(false)} />}
+      {showOneTime && <CreateOneTimeInviteModal onClose={() => setShowOneTime(false)} />}
     </div>
   );
 }

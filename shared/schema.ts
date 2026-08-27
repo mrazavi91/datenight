@@ -11,6 +11,10 @@ export const users = sqliteTable("users", {
   authProvider: text("auth_provider").notNull().default("email"), // 'email' | 'google' | 'both'
   avatarUrl: text("avatar_url"),
   coupleId: text("couple_id"),
+  emailVerifiedAt: integer("email_verified_at"),
+  verificationToken: text("verification_token").unique(),
+  verificationTokenExpiresAt: integer("verification_token_expires_at"),
+  oneTimeCredits: integer("one_time_credits").notNull().default(0), // separate wallet: doesn't require a couple
   createdAt: integer("created_at").notNull(),
 });
 
@@ -82,6 +86,39 @@ export const notifications = sqliteTable("notifications", {
   createdAt: integer("created_at").notNull(),
 });
 
+export const oneTimeInvitations = sqliteTable("one_time_invitations", {
+  id: text("id").primaryKey(),
+  senderId: text("sender_id").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  title: text("title").notNull(),
+  date: text("date").notNull(),
+  time: text("time").notNull(),
+  location: text("location"),
+  note: text("note"),
+  emoji: text("emoji").notNull().default("💕"),
+  status: text("status").notNull().default("pending"), // pending | accepted | declined | expired
+  responseToken: text("response_token").notNull().unique(),
+  paidWithCredit: integer("paid_with_credit").notNull().default(0),
+  creditAwarded: integer("credit_awarded").notNull().default(0), // has a "date happened" token been paid out?
+  createdAt: integer("created_at").notNull(),
+  respondedAt: integer("responded_at"),
+  expiresAt: integer("expires_at").notNull(),
+});
+
+export const oneTimePayments = sqliteTable("one_time_payments", {
+  id: text("id").primaryKey(),
+  stripeSessionId: text("stripe_session_id").unique(),
+  senderId: text("sender_id").notNull(),
+  pendingData: text("pending_data").notNull(), // JSON: recipientEmail, recipientName, title, date, time, location, note, emoji
+  amount: integer("amount").notNull(),
+  currency: text("currency").notNull().default("gbp"),
+  status: text("status").notNull().default("pending"), // pending | paid
+  oneTimeInvitationId: text("one_time_invitation_id"),
+  createdAt: integer("created_at").notNull(),
+  fulfilledAt: integer("fulfilled_at"),
+});
+
 export const payments = sqliteTable("payments", {
   id: text("id").primaryKey(),
   stripeSessionId: text("stripe_session_id").unique(),
@@ -145,10 +182,26 @@ export const supportRequestSchema = z.object({
   message: z.string().trim().min(1, "Please tell us what's going on").max(4000),
 });
 
+export const createOneTimeInvitationSchema = z.object({
+  recipientEmail: z.string().trim().toLowerCase().email("Invalid email"),
+  recipientName: z.string().trim().max(80).optional().or(z.literal("")),
+  title: z.string().trim().min(1, "Title is required").max(120),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time"),
+  location: z.string().trim().max(200).optional().or(z.literal("")),
+  note: z.string().trim().max(1000).optional().or(z.literal("")),
+  emoji: z.string().trim().min(1).max(8).default("💕"),
+});
+
+export const respondOneTimeInvitationSchema = z.object({
+  action: z.enum(["accept", "decline"]),
+});
+
 export const INVITATION_PRICE_MINOR = 199; // £1.99
 export const INVITATION_PRICE_CURRENCY = "gbp";
 export const MAX_MEMORY_PHOTOS = 6;
 export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+export const ONE_TIME_INVITATION_EXPIRY_DAYS = 14;
 
 export type User = typeof users.$inferSelect;
 export type Couple = typeof couples.$inferSelect;
@@ -158,12 +211,25 @@ export type MemoryPhoto = typeof memoryPhotos.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type SupportRequest = typeof supportRequests.$inferSelect;
+export type OneTimeInvitation = typeof oneTimeInvitations.$inferSelect;
+export type OneTimePayment = typeof oneTimePayments.$inferSelect;
 
 export const insertUserSchema = createInsertSchema(users);
 export const insertInvitationSchema = createInsertSchema(invitations);
 
-export type PublicUser = Pick<User, "id" | "name" | "email" | "avatarUrl" | "coupleId">;
+export type PublicUser = Pick<User, "id" | "name" | "email" | "avatarUrl" | "coupleId"> & {
+  emailVerified: boolean;
+  oneTimeCredits: number;
+};
 
 export function toPublicUser(user: User): PublicUser {
-  return { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl, coupleId: user.coupleId };
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    avatarUrl: user.avatarUrl,
+    coupleId: user.coupleId,
+    emailVerified: Boolean(user.emailVerifiedAt),
+    oneTimeCredits: user.oneTimeCredits,
+  };
 }

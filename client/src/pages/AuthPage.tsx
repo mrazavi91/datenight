@@ -1,27 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { useAuthConfig } from "@/hooks/useAuthConfig";
 import { ApiError } from "@/lib/api";
 
 export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login, signup } = useAuth();
+  const { data: config } = useAuthConfig();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const googleEnabled = config?.googleAuthEnabled ?? false;
 
   const isSignup = mode === "signup";
   const pending = isSignup ? signup.isPending : login.isPending;
-
-  useEffect(() => {
-    api<{ googleAuthEnabled: boolean }>("/api/auth/config")
-      .then((c) => setGoogleEnabled(c.googleAuthEnabled))
-      .catch(() => setGoogleEnabled(false));
-  }, []);
 
   useEffect(() => {
     if (searchParams.get("error") === "google") {

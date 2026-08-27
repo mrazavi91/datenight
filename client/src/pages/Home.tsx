@@ -1,13 +1,18 @@
 import { Link } from "react-router-dom";
 import PublicNav from "@/components/PublicNav";
 import PublicFooter from "@/components/PublicFooter";
-import { Calendar, PartyPopper, RefreshCw, Images, Ticket, Bell } from "lucide-react";
+import { Calendar, PartyPopper, RefreshCw, Images, Ticket, Bell, UserPlus } from "lucide-react";
 
 const FEATURES = [
   {
     icon: Calendar,
     title: "Plan the date",
     text: "Pick a title, time, place, and a theme emoji, then add a sweet note before you send it.",
+  },
+  {
+    icon: UserPlus,
+    title: "Meet someone new",
+    text: "Just met? Send a one-time first-date invite by email — no account needed for them to say yes.",
   },
   {
     icon: PartyPopper,

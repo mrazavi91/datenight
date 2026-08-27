@@ -20,6 +20,7 @@ export default function Header() {
   const { data } = useCouple();
   const partner = data?.partner;
   const credits = data?.couple?.credits ?? 0;
+  const oneTimeCredits = user?.oneTimeCredits ?? 0;
 
   return (
     <header className="sticky top-0 z-20 bg-cream-100/80 backdrop-blur border-b border-blush-100">
@@ -33,6 +34,11 @@ export default function Header() {
           {credits > 0 && (
             <span className="badge bg-sunset-100 text-terracotta-600 gap-1" title="Date tokens — spend instead of paying">
               🎟️ {credits}
+            </span>
+          )}
+          {oneTimeCredits > 0 && (
+            <span className="badge bg-blush-100 text-blush-600 gap-1" title="First-date tokens — spend on one-time invites">
+              🎫 {oneTimeCredits}
             </span>
           )}
           {partner && user && (
