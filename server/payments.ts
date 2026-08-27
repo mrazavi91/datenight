@@ -42,7 +42,7 @@ export async function createInvitationCheckoutSession(params: {
           unit_amount: INVITATION_PRICE_MINOR,
           product_data: {
             name: `Date invitation: ${params.invitation.title}`,
-            description: `Send "${params.invitation.title}" to ${params.recipient.name} on Date Night`,
+            description: `Send "${params.invitation.title}" to ${params.recipient.name} on MeetYah`,
           },
         },
         quantity: 1,

@@ -12,7 +12,7 @@ const VALUES = [
   {
     icon: Sparkles,
     title: "A little delight goes a long way",
-    text: "Confetti when you say yes. A token when plans change. Date Night is meant to feel like a warm surprise, not another chore app.",
+    text: "Confetti when you say yes. A token when plans change. MeetYah is meant to feel like a warm surprise, not another chore app.",
   },
   {
     icon: ShieldCheck,
@@ -29,16 +29,16 @@ export default function About() {
       <main className="flex-1">
         <section className="max-w-3xl mx-auto px-4 pt-16 pb-12 text-center">
           <div className="text-5xl mb-4">💌</div>
-          <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-terracotta-700">About Date Night</h1>
+          <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-terracotta-700">About MeetYah</h1>
           <p className="text-lg text-terracotta-500 mt-4">
-            We built Date Night because "we should do something this weekend" kept dying in a group chat, unanswered.
+            We built MeetYah because "we should do something this weekend" kept dying in a group chat, unanswered.
           </p>
         </section>
 
         <section className="max-w-3xl mx-auto px-4 pb-12">
           <div className="card p-8 space-y-4 text-terracotta-600 leading-relaxed">
             <p>
-              Date Night started as a simple idea: turn "we should hang out sometime" into an actual plan, with an actual answer,
+              MeetYah started as a simple idea: turn "we should hang out sometime" into an actual plan, with an actual answer,
               in under a minute. Calendars are for meetings. Group chats lose ideas in the scroll. Neither one feels like an
               invitation — and asking someone on a date should feel like one, even after years together.
             </p>

@@ -55,7 +55,7 @@ export default function Home() {
             <span className="text-blush-500">slip through the cracks.</span>
           </h1>
           <p className="text-lg text-terracotta-500 mt-5 max-w-xl mx-auto">
-            Date Night is the fun, official way for couples to plan time together — send a playful invite, get a real answer, and
+            MeetYah is the fun, official way for couples to plan time together — send a playful invite, get a real answer, and
             keep every memory that follows.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-8">

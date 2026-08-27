@@ -71,7 +71,7 @@ app.set("trust proxy", 1);
 app.use(
   session({
     store: new SQLiteStore({ dir: dataDir, db: "sessions.db" }) as any,
-    secret: process.env.SESSION_SECRET || "date-night-dev-secret-change-me",
+    secret: process.env.SESSION_SECRET || "meetyah-dev-secret-change-me",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -109,7 +109,7 @@ async function main() {
 
   const port = Number(process.env.PORT) || 5000;
   server.listen(port, "0.0.0.0", () => {
-    console.log(`Date Night server running on http://localhost:${port}`);
+    console.log(`MeetYah server running on http://localhost:${port}`);
   });
 }
 

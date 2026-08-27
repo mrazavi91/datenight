@@ -49,7 +49,7 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-5xl mb-2 animate-pop-in">💌</div>
-          <h1 className="text-3xl font-display font-bold text-terracotta-600">Date Night</h1>
+          <h1 className="text-3xl font-display font-bold text-terracotta-600">MeetYah</h1>
           <p className="text-terracotta-400 mt-1">Plan sweet moments together</p>
         </div>
 

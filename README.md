@@ -1,4 +1,4 @@
-# Date Night 💕
+# MeetYah 💕
 
 A web app for couples to send and respond to date invitations — plan a date, your partner accepts, declines, or proposes a new time, with a confetti celebration on acceptance.
 

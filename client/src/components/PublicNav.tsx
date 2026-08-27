@@ -9,7 +9,7 @@ export default function PublicNav() {
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <span className="text-2xl">💕</span>
-          <span className="font-display font-bold text-lg text-terracotta-600">Date Night</span>
+          <span className="font-display font-bold text-lg text-terracotta-600">MeetYah</span>
         </Link>
 
         <nav className="flex items-center gap-4 text-sm font-semibold text-terracotta-500">
