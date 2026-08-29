@@ -65,6 +65,8 @@ npm run build
 npm start
 ```
 
+Data (SQLite DB, sessions, uploaded photos) lives under `DATA_DIR` (defaults to `<project root>/data`) — set `DATA_DIR` to wherever your host's persistent volume is mounted. See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the exact step-by-step to get this live on Railway, including the volume and env var setup.
+
 ## Project structure
 
 ```

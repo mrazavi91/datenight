@@ -3,9 +3,9 @@ import express from "express";
 import session from "express-session";
 import SQLiteStoreFactory from "connect-sqlite3";
 import http from "http";
-import path from "path";
 import passport from "./auth";
 import { migrate } from "./db";
+import { dataDir } from "./paths";
 import authRoutes from "./routes/auth";
 import coupleRoutes from "./routes/couples";
 import invitationRoutes from "./routes/invitations";
@@ -74,7 +74,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use("/uploads", express.static(uploadsDir));
 
 const SQLiteStore = SQLiteStoreFactory(session);
-const dataDir = path.resolve(import.meta.dirname, "..", "data");
 
 app.set("trust proxy", 1);
 app.use(
@@ -87,7 +86,10 @@ app.use(
       maxAge: 30 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production" && process.env.FORCE_HTTPS === "true",
+      // "auto" reads req.secure, which respects the trust-proxy setting above — correct
+      // both for plain local dev (http) and behind a host like Railway that terminates TLS
+      // at its edge and forwards X-Forwarded-Proto: https.
+      secure: "auto",
     },
   })
 );

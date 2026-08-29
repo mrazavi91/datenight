@@ -1,13 +1,8 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import fs from "fs";
 import path from "path";
 import * as schema from "../shared/schema";
-
-const dataDir = path.resolve(import.meta.dirname, "..", "data");
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+import { dataDir } from "./paths";
 
 const sqlite = new Database(path.join(dataDir, "datenight.db"));
 sqlite.pragma("journal_mode = WAL");

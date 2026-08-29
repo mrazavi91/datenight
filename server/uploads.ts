@@ -3,8 +3,9 @@ import path from "path";
 import multer from "multer";
 import { nanoid } from "nanoid";
 import { MAX_MEMORY_PHOTOS, MAX_PHOTO_SIZE_BYTES } from "../shared/schema";
+import { dataDir } from "./paths";
 
-export const uploadsDir = path.resolve(import.meta.dirname, "..", "data", "uploads");
+export const uploadsDir = path.join(dataDir, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
