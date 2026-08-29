@@ -2,17 +2,28 @@ import { useEffect, useState } from "react";
 import PublicNav from "@/components/PublicNav";
 import PublicFooter from "@/components/PublicFooter";
 import { useAuth } from "@/hooks/useAuth";
+import { useInvitationPrice } from "@/hooks/useInvitations";
 import { apiPost, ApiError } from "@/lib/api";
 import { Mail } from "lucide-react";
 
-const FAQS = [
-  { q: "How do I pair with my partner?", a: "One of you creates a couple space to get a 6-character invite code, then the other joins with that code from the onboarding screen." },
-  { q: "What happens if my partner declines an invite?", a: "No hard feelings — and you get a date token credited back, which you can use to send a future invite for free." },
-  { q: "Does sending an invite always cost money?", a: "It costs £1.99 unless you have a date token (earned from a decline or a date that happened) — tokens are always free to use." },
-];
+function buildFaqs(isFree: boolean) {
+  return [
+    { q: "How do I pair with my partner?", a: "One of you creates a couple space to get a 6-character invite code, then the other joins with that code from the onboarding screen." },
+    { q: "What happens if my partner declines an invite?", a: "No hard feelings — and you get a date token credited back, which you can use on a future invite." },
+    {
+      q: "Does sending an invite cost money?",
+      a: isFree
+        ? "Nope — MeetYah is completely free to use right now, sending included."
+        : "It costs £1.99 unless you have a date token (earned from a decline or a date that happened) — tokens are always free to use.",
+    },
+  ];
+}
 
 export default function Support() {
   const { user } = useAuth();
+  const { data: price } = useInvitationPrice();
+  const isFree = price?.freeMode ?? true;
+  const FAQS = buildFaqs(isFree);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -50,6 +61,11 @@ export default function Support() {
           <div className="text-5xl mb-4">🛟</div>
           <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-terracotta-700">We're here to help</h1>
           <p className="text-lg text-terracotta-500 mt-4">Stuck on something, found a bug, or just have feedback? Send us a note.</p>
+          {isFree && (
+            <span className="inline-block badge bg-sunset-100 text-terracotta-600 mt-4 !text-sm !px-4 !py-1.5">
+              💕 MeetYah is completely free to use
+            </span>
+          )}
         </section>
 
         <section className="max-w-lg mx-auto px-4 pb-16">

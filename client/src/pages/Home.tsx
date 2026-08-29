@@ -61,7 +61,7 @@ export default function Home() {
           <div className="text-6xl mb-4 animate-pop-in">💌</div>
           {isFree && (
             <span className="inline-block badge bg-sunset-100 text-terracotta-600 mb-4 !text-sm !px-4 !py-1.5">
-              🎉 100% free right now — no charge to send invites
+              💕 100% free — plan away, on us
             </span>
           )}
           <h1 className="text-4xl sm:text-5xl font-display font-extrabold text-terracotta-700 leading-tight">
@@ -134,7 +134,7 @@ export default function Home() {
             <h2 className="text-2xl font-display font-bold text-terracotta-700">Ready to plan your next date?</h2>
             <p className="text-terracotta-400 mt-2">
               It takes less than a minute to pair up and send your first invite
-              {isFree ? " — and it's free right now." : "."}
+              {isFree ? " — completely free." : "."}
             </p>
             <Link to="/signup" className="btn-primary !px-7 !py-3 text-base mt-6 inline-flex">
               Create your couple space

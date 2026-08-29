@@ -8,14 +8,24 @@ const resend = apiKey ? new Resend(apiKey) : null;
 
 const FROM = process.env.EMAIL_FROM || "MeetYah <onboarding@resend.dev>";
 
-export async function sendEmail(params: { to: string; subject: string; html: string }): Promise<void> {
+// Where support-form submissions get forwarded. Override with SUPPORT_NOTIFY_EMAIL if you
+// want them going somewhere else later.
+export const supportNotifyEmail = process.env.SUPPORT_NOTIFY_EMAIL || "mhrazavi99@gmail.com";
+
+export async function sendEmail(params: { to: string; subject: string; html: string; replyTo?: string }): Promise<void> {
   if (!resend) {
     console.warn(`[email] RESEND_API_KEY not set — skipping email to ${params.to}: "${params.subject}"`);
     return;
   }
   try {
     // The SDK doesn't throw on API-level failures — it resolves with { data: null, error }.
-    const result = await resend.emails.send({ from: FROM, to: params.to, subject: params.subject, html: params.html });
+    const result = await resend.emails.send({
+      from: FROM,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      replyTo: params.replyTo,
+    });
     if (result.error) {
       throw new Error(`Resend rejected the email: ${result.error.message}`);
     }
@@ -88,6 +98,19 @@ export function oneTimeResponseEmail(params: {
       <p style="color: #8C3D20; font-size: 15px; line-height: 1.5;">
         ${escapeHtml(params.recipientLabel)} ${verb} <strong>"${escapeHtml(params.title)}"</strong>${params.accepted ? " 🎉" : "."}
       </p>
+    `),
+  };
+}
+
+export function supportRequestEmail(params: { name: string; email: string; message: string }): { subject: string; html: string } {
+  return {
+    subject: `MeetYah support request from ${params.name}`,
+    html: emailShell(`
+      <p style="color: #8C3D20; font-size: 15px; line-height: 1.5;">
+        <strong>${escapeHtml(params.name)}</strong> (${escapeHtml(params.email)}) sent a message from the Support page:
+      </p>
+      <p style="color: #8C3D20; font-size: 15px; line-height: 1.5; white-space: pre-wrap; background: #FFF1F2; border-radius: 12px; padding: 16px; margin-top: 12px;">${escapeHtml(params.message)}</p>
+      <p style="color: #EC9C74; font-size: 13px; margin-top: 20px;">Reply directly to this email to respond to them.</p>
     `),
   };
 }

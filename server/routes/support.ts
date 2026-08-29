@@ -2,6 +2,7 @@ import { Router } from "express";
 import { storage } from "../storage";
 import { supportRequestSchema } from "../../shared/schema";
 import type { User } from "../../shared/schema";
+import { emailEnabled, sendEmail, supportRequestEmail, supportNotifyEmail } from "../email";
 
 const router = Router();
 
@@ -19,6 +20,15 @@ router.post("/", async (req, res) => {
     email: parsed.data.email,
     message: parsed.data.message,
   });
+
+  if (emailEnabled) {
+    const { subject, html } = supportRequestEmail({ name: parsed.data.name, email: parsed.data.email, message: parsed.data.message });
+    try {
+      await sendEmail({ to: supportNotifyEmail, subject, html, replyTo: parsed.data.email });
+    } catch {
+      // The request is already saved in the database either way — not fatal for the submitter.
+    }
+  }
 
   res.status(201).json({ ok: true });
 });
