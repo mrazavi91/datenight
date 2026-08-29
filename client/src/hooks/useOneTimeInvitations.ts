@@ -39,5 +39,11 @@ export function useOneTimeInvitationActions() {
     onSuccess: invalidate,
   });
 
-  return { checkout, useCredit };
+  const createFree = useMutation({
+    mutationFn: (input: CreateOneTimeInvitationInput) =>
+      apiPost<{ invitation: OneTimeInvitation }>("/api/one-time-invitations/free", input),
+    onSuccess: invalidate,
+  });
+
+  return { checkout, useCredit, createFree };
 }

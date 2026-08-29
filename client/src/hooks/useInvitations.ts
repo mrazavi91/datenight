@@ -41,6 +41,11 @@ export function useInvitationActions() {
     onSuccess: invalidate,
   });
 
+  const createFree = useMutation({
+    mutationFn: (input: CreateInvitationInput) => apiPost<{ invitation: Invitation }>("/api/invitations/free", input),
+    onSuccess: invalidate,
+  });
+
   const respond = useMutation({
     mutationFn: ({ id, input }: { id: string; input: RespondInput }) =>
       apiPost<{ invitation: Invitation }>(`/api/invitations/${id}/respond`, input),
@@ -53,13 +58,13 @@ export function useInvitationActions() {
     onSuccess: invalidate,
   });
 
-  return { checkout, useCredit, respond, saveMemory };
+  return { checkout, useCredit, createFree, respond, saveMemory };
 }
 
 export function useInvitationPrice() {
   return useQuery({
     queryKey: ["/api/invitations/price"],
-    queryFn: () => api<{ amount: number; currency: string; paymentsEnabled: boolean }>("/api/invitations/price"),
+    queryFn: () => api<{ amount: number; currency: string; paymentsEnabled: boolean; freeMode: boolean }>("/api/invitations/price"),
     staleTime: 5 * 60_000,
   });
 }

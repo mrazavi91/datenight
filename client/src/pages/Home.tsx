@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import PublicNav from "@/components/PublicNav";
 import PublicFooter from "@/components/PublicFooter";
+import { useInvitationPrice } from "@/hooks/useInvitations";
 import { Calendar, PartyPopper, RefreshCw, Images, Ticket, Bell, UserPlus } from "lucide-react";
 
 const FEATURES = [
@@ -32,7 +33,7 @@ const FEATURES = [
   {
     icon: Ticket,
     title: "Earn date tokens",
-    text: "Go on a date or get a decline, and you'll earn a token toward your next invite — free.",
+    text: "Go on a date, or get a decline, and you'll earn a token toward your next invite.",
   },
   {
     icon: Bell,
@@ -48,6 +49,9 @@ const STEPS = [
 ];
 
 export default function Home() {
+  const { data: price } = useInvitationPrice();
+  const isFree = price?.freeMode ?? true;
+
   return (
     <div className="min-h-screen flex flex-col">
       <PublicNav />
@@ -55,6 +59,11 @@ export default function Home() {
       <main className="flex-1">
         <section className="max-w-5xl mx-auto px-4 pt-16 pb-20 text-center">
           <div className="text-6xl mb-4 animate-pop-in">💌</div>
+          {isFree && (
+            <span className="inline-block badge bg-sunset-100 text-terracotta-600 mb-4 !text-sm !px-4 !py-1.5">
+              🎉 100% free right now — no charge to send invites
+            </span>
+          )}
           <h1 className="text-4xl sm:text-5xl font-display font-extrabold text-terracotta-700 leading-tight">
             Never let date night <br className="hidden sm:block" />
             <span className="text-blush-500">slip through the cracks.</span>
@@ -123,7 +132,10 @@ export default function Home() {
           <div className="card p-10">
             <div className="text-4xl mb-3">💞</div>
             <h2 className="text-2xl font-display font-bold text-terracotta-700">Ready to plan your next date?</h2>
-            <p className="text-terracotta-400 mt-2">It takes less than a minute to pair up and send your first invite.</p>
+            <p className="text-terracotta-400 mt-2">
+              It takes less than a minute to pair up and send your first invite
+              {isFree ? " — and it's free right now." : "."}
+            </p>
             <Link to="/signup" className="btn-primary !px-7 !py-3 text-base mt-6 inline-flex">
               Create your couple space
             </Link>

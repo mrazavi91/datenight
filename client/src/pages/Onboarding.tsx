@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useCouple, useCoupleActions } from "@/hooks/useCouple";
 import { useAuth } from "@/hooks/useAuth";
+import { useInvitationPrice } from "@/hooks/useInvitations";
 import { ApiError } from "@/lib/api";
 import CreateOneTimeInviteModal from "@/components/CreateOneTimeInviteModal";
 import OneTimeInvitesList from "@/components/OneTimeInvitesList";
@@ -10,6 +11,8 @@ export default function Onboarding() {
   const { user, logout } = useAuth();
   const { data, isLoading } = useCouple();
   const { create, join } = useCoupleActions();
+  const { data: price } = useInvitationPrice();
+  const isFree = price?.freeMode ?? true;
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -116,7 +119,8 @@ export default function Onboarding() {
             <div className="text-2xl mb-1">👋</div>
             <h2 className="font-display font-bold text-terracotta-700">Just met someone?</h2>
             <p className="text-sm text-terracotta-400 mt-1 mb-3">
-              Send a one-time first-date invite — no couple space needed, no account needed for them to respond.
+              Send a one-time first-date invite — no couple space needed, no account needed for them to respond
+              {isFree ? ", and it's free right now." : "."}
             </p>
             <button onClick={() => setShowOneTime(true)} className="btn-secondary w-full">
               Send a first-date request

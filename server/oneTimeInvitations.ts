@@ -63,6 +63,15 @@ export async function createOneTimeInvitationWithCredit(params: {
   return createAndSendOneTimeInvitation({ sender: params.sender, data: params.data, origin: params.origin, paidWithCredit: true });
 }
 
+// Launch mode: sends the invite for free, no payment or token spent.
+export async function createOneTimeInvitationFree(params: {
+  sender: User;
+  origin: string;
+  data: PendingOneTimeInvitationData;
+}): Promise<OneTimeInvitation> {
+  return createAndSendOneTimeInvitation({ sender: params.sender, data: params.data, origin: params.origin, paidWithCredit: false });
+}
+
 export async function createOneTimeInvitationCheckoutSession(params: {
   sender: User;
   origin: string;

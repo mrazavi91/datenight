@@ -14,13 +14,14 @@ import { paymentsEnabled, stripe } from "../stripe";
 import { createInvitationCheckoutSession, fulfillPayment } from "../payments";
 import { reconcilePastDateCredits } from "../credits";
 import { photoUpload, deleteUploadedFile } from "../uploads";
+import { freeMode } from "../pricing";
 
 const router = Router();
 
 // Public: static pricing info, also used by the one-time-invitation flow which doesn't
 // require a couple.
 router.get("/price", (_req, res) => {
-  res.json({ amount: INVITATION_PRICE_MINOR, currency: INVITATION_PRICE_CURRENCY, paymentsEnabled });
+  res.json({ amount: INVITATION_PRICE_MINOR, currency: INVITATION_PRICE_CURRENCY, paymentsEnabled, freeMode });
 });
 
 router.use(requireAuth, requireCouple);
@@ -99,6 +100,44 @@ router.post("/use-credit", async (req, res) => {
     note: parsed.data.note || undefined,
     emoji: parsed.data.emoji,
     paidWithCredit: true,
+  });
+
+  await storage.createNotification({
+    userId: partner.id,
+    type: "invite_received",
+    message: `${user.name} sent you a date invite: "${invite.title}" ${invite.emoji}`,
+    invitationId: invite.id,
+  });
+
+  res.status(201).json({ invitation: invite });
+});
+
+// Launch mode: sending is free, no payment or token spent. Guarded server-side (not just
+// hidden in the UI) so this can't be hit once FREE_MODE is turned off.
+router.post("/free", async (req, res) => {
+  const user = req.user as User;
+  if (!freeMode) {
+    return res.status(403).json({ message: "Free sending is turned off — pay or use a date token instead." });
+  }
+  const parsed = createInvitationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+  const partner = await storage.getPartner(user);
+  if (!partner) {
+    return res.status(400).json({ message: "Waiting for your partner to join before you can send invitations" });
+  }
+
+  const invite = await storage.createInvitation({
+    coupleId: user.coupleId!,
+    senderId: user.id,
+    recipientId: partner.id,
+    title: parsed.data.title,
+    date: parsed.data.date,
+    time: parsed.data.time,
+    location: parsed.data.location || undefined,
+    note: parsed.data.note || undefined,
+    emoji: parsed.data.emoji,
   });
 
   await storage.createNotification({

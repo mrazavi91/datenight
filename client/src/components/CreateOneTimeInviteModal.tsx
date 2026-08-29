@@ -16,7 +16,7 @@ function formatMoney(amountMinor: number, currency: string) {
 }
 
 export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => void }) {
-  const { checkout, useCredit } = useOneTimeInvitationActions();
+  const { checkout, useCredit, createFree } = useOneTimeInvitationActions();
   const { data: price } = useInvitationPrice();
   const { data: config } = useAuthConfig();
   const { user } = useAuth();
@@ -33,10 +33,11 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
   const [payWithToken, setPayWithToken] = useState(false);
   const [sent, setSent] = useState(false);
 
+  const isFree = price?.freeMode ?? false;
   const priceLabel = price ? formatMoney(price.amount, price.currency) : "£1.99";
   const credits = user?.oneTimeCredits ?? 0;
-  const willUseToken = payWithToken && credits > 0;
-  const pending = checkout.isPending || useCredit.isPending;
+  const willUseToken = !isFree && payWithToken && credits > 0;
+  const pending = checkout.isPending || useCredit.isPending || createFree.isPending;
   const emailReady = config?.emailEnabled ?? false;
 
   async function onSubmit(e: React.FormEvent) {
@@ -44,6 +45,11 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
     setError(null);
     try {
       const input = { recipientEmail, recipientName, title, date, time, location, note, emoji };
+      if (isFree) {
+        await createFree.mutateAsync(input);
+        setSent(true);
+        return;
+      }
       if (willUseToken) {
         await useCredit.mutateAsync(input);
         setSent(true);
@@ -184,7 +190,7 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
           />
         </div>
 
-        {credits > 0 && (
+        {!isFree && credits > 0 && (
           <label className="flex items-center gap-2.5 bg-sunset-100 rounded-xl px-3 py-2.5 cursor-pointer">
             <input
               type="checkbox"
@@ -205,7 +211,7 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
             Email isn't set up on this server yet, so there's no way to deliver this invite. Add a Resend API key to get going.
           </p>
         )}
-        {emailReady && !willUseToken && price && !price.paymentsEnabled && (
+        {emailReady && !isFree && !willUseToken && price && !price.paymentsEnabled && (
           <p className="text-sm text-terracotta-500 bg-sunset-100 rounded-xl px-3 py-2">
             Payments aren't set up on this server yet, so invitations can't be sent. Add a Stripe secret key to get going.
           </p>
@@ -214,12 +220,22 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
         <button
           type="submit"
           className="btn-primary w-full"
-          disabled={pending || !emailReady || (!willUseToken && price ? !price.paymentsEnabled : false)}
+          disabled={pending || !emailReady || (!isFree && !willUseToken && price ? !price.paymentsEnabled : false)}
         >
-          {pending ? "Sending…" : willUseToken ? "Send invitation with a token 🎟️" : `Pay ${priceLabel} & send invitation 💌`}
+          {pending
+            ? "Sending…"
+            : isFree
+              ? "Send invitation — it's free! 💌"
+              : willUseToken
+                ? "Send invitation with a token 🎟️"
+                : `Pay ${priceLabel} & send invitation 💌`}
         </button>
         <p className="text-xs text-terracotta-300 text-center">
-          {willUseToken ? "No charge — this uses one of your date tokens." : "They'll get an email with a link — no account needed to respond."}
+          {isFree
+            ? "Free while MeetYah is new — they'll get an email with a link, no account needed to respond."
+            : willUseToken
+              ? "No charge — this uses one of your date tokens."
+              : "They'll get an email with a link — no account needed to respond."}
         </p>
       </form>
     </Modal>

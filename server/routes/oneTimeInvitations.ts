@@ -13,9 +13,11 @@ import { emailEnabled, sendEmail, oneTimeResponseEmail } from "../email";
 import {
   createOneTimeInvitationCheckoutSession,
   createOneTimeInvitationWithCredit,
+  createOneTimeInvitationFree,
   fulfillOneTimePayment,
 } from "../oneTimeInvitations";
 import { reconcileOneTimeInvitationCredits } from "../credits";
+import { freeMode } from "../pricing";
 
 const router = Router();
 
@@ -177,6 +179,38 @@ router.post("/use-credit", async (req, res) => {
 
   const origin = `${req.protocol}://${req.get("host")}`;
   const invite = await createOneTimeInvitationWithCredit({
+    sender: user,
+    origin,
+    data: {
+      recipientEmail: parsed.data.recipientEmail,
+      recipientName: parsed.data.recipientName || undefined,
+      title: parsed.data.title,
+      date: parsed.data.date,
+      time: parsed.data.time,
+      location: parsed.data.location || undefined,
+      note: parsed.data.note || undefined,
+      emoji: parsed.data.emoji,
+    },
+  });
+
+  res.status(201).json({ invitation: invite });
+});
+
+router.post("/free", async (req, res) => {
+  const user = req.user as User;
+  if (!freeMode) {
+    return res.status(403).json({ message: "Free sending is turned off — pay or use a date token instead." });
+  }
+  if (!emailEnabled) {
+    return res.status(503).json({ message: "Email isn't configured on this server yet, so there's no way to deliver the invite. Set RESEND_API_KEY." });
+  }
+  const parsed = createOneTimeInvitationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+
+  const origin = `${req.protocol}://${req.get("host")}`;
+  const invite = await createOneTimeInvitationFree({
     sender: user,
     origin,
     data: {

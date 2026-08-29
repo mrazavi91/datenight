@@ -8,7 +8,7 @@ A web app for couples to send and respond to date invitations — plan a date, y
 - **Backend:** Node.js + Express, same process as Vite in dev (Vite runs in middleware mode)
 - **Database:** SQLite via `better-sqlite3` + Drizzle ORM
 - **Auth:** Passport.js — `passport-local` (email/password) and `passport-google-oauth20` (Google sign-in). Signing up with Google using an email that already has a password account links to the same user instead of creating a duplicate.
-- **Payments:** Stripe Checkout — sending an invitation costs £1.99, charged to the sender. No real refunds; a decline or a completed date earns a shared "date token" the couple can spend on a future invite instead of paying.
+- **Payments:** Stripe Checkout — sending an invitation costs £1.99, charged to the sender. No real refunds; a decline or a completed date earns a shared "date token" the couple can spend on a future invite instead of paying. **Currently free for everyone** via the `FREE_MODE` launch switch (see below) — the Stripe/token code is all still there, just bypassed until you turn pricing back on.
 - **Email:** Resend — account email confirmation (soft reminder, doesn't block usage) and delivering one-time first-date invitations to people who don't have an account.
 - **Uploads:** `multer`, storing memory photos on local disk under `data/uploads/` (served at `/uploads/...`) — swap for S3/Cloudinary if you deploy somewhere that needs it.
 - **Realtime:** polling (TanStack Query `refetchInterval`) for invitations/notifications — good enough for v1; swap for Socket.io later if needed.
@@ -25,9 +25,15 @@ Google sign-in is automatically hidden until `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT
 
 The SQLite database and session store are created automatically under `data/` on first run (git-ignored).
 
+### Free launch mode
+
+`FREE_MODE=true` (the default) makes sending any invitation — couple or one-time — free, no Stripe or tokens required. This is meant for the early "get some users first" phase. The site says so wherever it's relevant (Home page badge, Dashboard, the create-invite modals). Date tokens keep accruing in the background exactly as before (a decline, or a date actually happening, still earns one) — they're just not needed to send anything while this is on, so they'll already have a balance once you flip pricing back on.
+
+When you're ready to charge: set `FREE_MODE=false` in your environment and restart. Nothing else changes in the code — the £1.99 Stripe Checkout flow and the "use a token instead" option both come back immediately, exactly as documented below.
+
 ### Payments (Stripe)
 
-Sending an invitation is disabled with a clear message until `STRIPE_SECRET_KEY` is set — there's no free path around it.
+Only relevant once `FREE_MODE=false`. At that point, sending an invitation is disabled with a clear message until `STRIPE_SECRET_KEY` is also set — there's no free path around it.
 
 1. Create a free account at [dashboard.stripe.com](https://dashboard.stripe.com) (no business verification needed to start in test mode).
 2. Grab your **test** keys from [dashboard.stripe.com/test/apikeys](https://dashboard.stripe.com/test/apikeys) and set `STRIPE_SECRET_KEY` in `.env`.
@@ -70,7 +76,7 @@ shared/       Drizzle schema + Zod validators shared by client and server
 ## Core flow
 
 1. Signed-out visitors land on a marketing Home page (with About/Support in the nav); sign up (email/password or Google) → create a couple space or join one with a 6-character invite code.
-2. Either partner creates a date invitation (title, date, time, location, emoji theme, note) and pays £1.99 via Stripe Checkout to send it, or spends a date token instead if the couple has one — the invitation is only created once payment (or the token spend) succeeds.
+2. Either partner creates a date invitation (title, date, time, location, emoji theme, note) and sends it. While `FREE_MODE` is on (the default), that's free; once turned off, sending costs £1.99 via Stripe Checkout, or a date token instead if the couple has one — the invitation is only created once payment (or the token spend) succeeds.
 3. The partner accepts 💚, declines 💔, or proposes a new time 🔄 (which goes back to the original sender to accept/decline/re-propose) — no additional charge for responding or rescheduling. A decline credits the sender's couple with a date token (no real refund).
 4. Accepted invitations show up under Upcoming Dates (with confetti on accept) and move to Past Dates once the date passes — which also credits the couple with a date token. Either partner can add a memory note, a 1–5 heart rating, and up to 6 photos to a past date.
 5. In-app notifications (bell + toast) fire on new invites, responses, reschedule proposals, and earned tokens.

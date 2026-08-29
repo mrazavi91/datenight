@@ -14,7 +14,7 @@ function formatMoney(amountMinor: number, currency: string) {
 }
 
 export default function CreateInvitationModal({ onClose }: { onClose: () => void }) {
-  const { checkout, useCredit } = useInvitationActions();
+  const { checkout, useCredit, createFree } = useInvitationActions();
   const { data: price } = useInvitationPrice();
   const { data: coupleData } = useCouple();
   const [title, setTitle] = useState("");
@@ -26,21 +26,28 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
   const [error, setError] = useState<string | null>(null);
   const [payWithToken, setPayWithToken] = useState(false);
 
+  const isFree = price?.freeMode ?? false;
   const priceLabel = price ? formatMoney(price.amount, price.currency) : "£1.99";
   const credits = coupleData?.couple?.credits ?? 0;
-  const willUseToken = payWithToken && credits > 0;
-  const pending = checkout.isPending || useCredit.isPending;
+  const willUseToken = !isFree && payWithToken && credits > 0;
+  const pending = checkout.isPending || useCredit.isPending || createFree.isPending;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      if (willUseToken) {
-        await useCredit.mutateAsync({ title, date, time, location, note, emoji });
+      const input = { title, date, time, location, note, emoji };
+      if (isFree) {
+        await createFree.mutateAsync(input);
         onClose();
         return;
       }
-      const { url } = await checkout.mutateAsync({ title, date, time, location, note, emoji });
+      if (willUseToken) {
+        await useCredit.mutateAsync(input);
+        onClose();
+        return;
+      }
+      const { url } = await checkout.mutateAsync(input);
       window.location.href = url;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't send invitation");
@@ -127,7 +134,7 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
           />
         </div>
 
-        {credits > 0 && (
+        {!isFree && credits > 0 && (
           <label className="flex items-center gap-2.5 bg-sunset-100 rounded-xl px-3 py-2.5 cursor-pointer">
             <input
               type="checkbox"
@@ -143,7 +150,7 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
 
         {error && <p className="text-sm text-blush-600 bg-blush-50 rounded-xl px-3 py-2">{error}</p>}
 
-        {!willUseToken && price && !price.paymentsEnabled && (
+        {!isFree && !willUseToken && price && !price.paymentsEnabled && (
           <p className="text-sm text-terracotta-500 bg-sunset-100 rounded-xl px-3 py-2">
             Payments aren't set up on this server yet, so invitations can't be sent. Add a Stripe secret key to get going.
           </p>
@@ -152,16 +159,22 @@ export default function CreateInvitationModal({ onClose }: { onClose: () => void
         <button
           type="submit"
           className="btn-primary w-full"
-          disabled={pending || (!willUseToken && price ? !price.paymentsEnabled : false)}
+          disabled={pending || (!isFree && !willUseToken && price ? !price.paymentsEnabled : false)}
         >
           {pending
             ? "Sending…"
-            : willUseToken
-              ? "Send invitation with a token 🎟️"
-              : `Pay ${priceLabel} & send invitation 💌`}
+            : isFree
+              ? "Send invitation — it's free! 💌"
+              : willUseToken
+                ? "Send invitation with a token 🎟️"
+                : `Pay ${priceLabel} & send invitation 💌`}
         </button>
         <p className="text-xs text-terracotta-300 text-center">
-          {willUseToken ? "No charge — this uses one of your date tokens." : "You'll pay securely via Stripe, then your invite gets sent."}
+          {isFree
+            ? "Sending is free while MeetYah is new — no charge."
+            : willUseToken
+              ? "No charge — this uses one of your date tokens."
+              : "You'll pay securely via Stripe, then your invite gets sent."}
         </p>
       </form>
     </Modal>

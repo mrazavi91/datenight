@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCouple } from "@/hooks/useCouple";
-import { useInvitations } from "@/hooks/useInvitations";
+import { useInvitations, useInvitationPrice } from "@/hooks/useInvitations";
 import { useOneTimeInvitations } from "@/hooks/useOneTimeInvitations";
 import { categorize } from "@/lib/invitations";
 import Header from "@/components/Header";
@@ -37,6 +37,8 @@ export default function Dashboard() {
   const { data: coupleData } = useCouple();
   const { data: inviteData, isLoading } = useInvitations();
   const { data: oneTimeData } = useOneTimeInvitations();
+  const { data: price } = useInvitationPrice();
+  const isFree = price?.freeMode ?? true;
   const [showChooser, setShowChooser] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showOneTime, setShowOneTime] = useState(false);
@@ -87,6 +89,9 @@ export default function Dashboard() {
             {partner ? ` & ${partner.name.split(" ")[0]}` : ""} 👋
           </h1>
           <p className="text-terracotta-400">Here's what's happening with your dates.</p>
+          {isFree && (
+            <span className="inline-block badge bg-sunset-100 text-terracotta-600 mt-2">🎉 Sending invites is free right now</span>
+          )}
         </div>
 
         {awaitingYou.length > 0 && (
