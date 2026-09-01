@@ -11,6 +11,8 @@ I can't create accounts or register domains for you (both need your payment/iden
 3. When asked for a branch, pick `claude/date-night-web-app-83j5au` (or merge it to `main` first and deploy that — your call; say the word and I'll open that PR).
 4. Railway will detect this is a Node app (via `railway.json` and `package.json`) and start a build automatically. Let it fail once — it needs the persistent volume and env vars from the next two steps before it can actually run.
 
+**If the build fails on `better-sqlite3` with a Python/node-gyp error**: Railway picked a Node version too new for `better-sqlite3` to have a prebuilt binary for, so it tried (and failed) to compile it from source. A `.nvmrc` pinning Node 22 is already in the repo, which should make Railway pick the right version automatically — but if it still happens, add one more variable in the **Variables** tab: `NIXPACKS_NODE_VERSION` = `22`, then redeploy.
+
 ## 2. Add a persistent volume
 
 Without this, every redeploy wipes the database and every uploaded memory photo. Non-negotiable before real users touch it.
