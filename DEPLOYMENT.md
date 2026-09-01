@@ -40,6 +40,7 @@ That's the minimum to run. Everything below is optional, matching what's already
 | `RESEND_API_KEY` / `EMAIL_FROM` | Email confirmation + one-time invites |
 | `SUPPORT_NOTIFY_EMAIL` | Already defaults to your email; only set this if you want it to go somewhere else |
 | `FREE_MODE` | Defaults to free (`true`). Set to `false` when you're ready to charge. |
+| `ADMIN_SECRET` | Unlocks `/admin` — a simple page to see everyone who's signed up, couples, invitations, and support requests. Pick a long random value and keep it private; without it, `/admin` is disabled entirely. |
 
 Railway sets `PORT` automatically — don't set it yourself.
 

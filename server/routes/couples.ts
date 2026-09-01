@@ -4,6 +4,7 @@ import { joinCoupleSchema, toPublicUser } from "../../shared/schema";
 import type { User } from "../../shared/schema";
 import { requireAuth } from "../middleware";
 import { reconcilePastDateCredits } from "../credits";
+import { notifyUser } from "../notify";
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.post("/join", async (req, res) => {
 
   const owner = await storage.getUserById(couple.user1Id);
   if (owner) {
-    await storage.createNotification({
+    await notifyUser({
       userId: owner.id,
       type: "partner_joined",
       message: `${user.name} joined your couple space! 🎉`,

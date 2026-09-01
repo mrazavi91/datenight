@@ -3,6 +3,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
+import { sendWelcomeEmail } from "./notify";
 import type { User } from "../shared/schema";
 
 passport.serializeUser((user: Express.User, done) => {
@@ -82,6 +83,7 @@ if (googleAuthEnabled) {
             // Only trust this as pre-verified if Google actually returned a real email.
             emailVerifiedAt: email ? Date.now() : null,
           });
+          await sendWelcomeEmail(newUser);
           return done(null, newUser);
         } catch (err) {
           return done(err as Error);

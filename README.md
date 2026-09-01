@@ -47,16 +47,22 @@ Only relevant once `FREE_MODE=false`. At that point, sending an invitation is di
 
 ### Email (Resend)
 
-Powers two things: account email confirmation (soft — doesn't block using the app, just shows a dismissible-once-confirmed banner) and one-time first-date invitations (hard-gated — there's no point creating an invite that can never be delivered, so sending is disabled with a clear message until this is configured).
+Powers account email confirmation, a welcome email on signup, one-time first-date invitations, and lifecycle notification emails (partner joined, invite sent/accepted/declined/rescheduled, date token earned) — so a partner who isn't sitting in the app finds out by email and can get back to their account.
 
 1. Sign up free at [resend.com](https://resend.com) (no card required).
 2. Grab an API key from [resend.com/api-keys](https://resend.com/api-keys) and set `RESEND_API_KEY` in `.env`.
-3. By default, `EMAIL_FROM` sends from Resend's shared test address — fine for trying things out, but it can only deliver to your own Resend account email. Verify your own domain at [resend.com/domains](https://resend.com/domains) (a few DNS records) to send from a real address like `hello@meetyah.com` to anyone.
+3. **Important:** by default, `EMAIL_FROM` sends from Resend's shared test address (`onboarding@resend.dev`), which can only deliver to your own Resend account email — every other recipient fails silently (the request still succeeds, the email just never arrives). This is the most common reason "email doesn't work" even though `RESEND_API_KEY` is set. Verify your own domain at [resend.com/domains](https://resend.com/domains) (a few DNS records, usually done in minutes) and set `EMAIL_FROM` to a real address on it, like `hello@meetyah.com`, to send to anyone. The server logs a warning on startup if you're still on the shared sandbox address.
 4. Restart `npm run dev`.
 
 ### One-time first-date invitations
 
 For meeting someone for the first time — no couple space required. Reachable from the Onboarding page (before pairing) or the "+" button's chooser on the Dashboard (after pairing). The sender pays £1.99 (or spends a token) same as a regular invite; the recipient gets an email with a link and can Accept/Decline right from that page — no MeetYah account needed. It's a single yes/no, not a back-and-forth: no reschedule option, and the link expires after 14 days. Declining credits the sender with a token (tracked separately from couple tokens, since the sender may not have a couple yet); so does the date actually happening.
+
+Right after sending, the sender also gets the shareable link itself (`/first-date/:token`) with a share sheet (native share on mobile, plus explicit WhatsApp and copy-link buttons) — useful when email isn't the best way to reach someone, or as a backup if it lands in spam.
+
+### Admin page
+
+Set `ADMIN_SECRET` and visit `/admin` to see every user (name, email, auth provider, verified status, couple, token balance), every couple, every invitation (couple and one-time), and support requests — a quick way to check the database without needing a SQLite client. It's gated by that shared secret only, not a real login; leave `ADMIN_SECRET` unset to disable the page entirely.
 
 ## Production build
 
@@ -81,7 +87,7 @@ shared/       Drizzle schema + Zod validators shared by client and server
 2. Either partner creates a date invitation (title, date, time, location, emoji theme, note) and sends it. While `FREE_MODE` is on (the default), that's free; once turned off, sending costs £1.99 via Stripe Checkout, or a date token instead if the couple has one — the invitation is only created once payment (or the token spend) succeeds.
 3. The partner accepts 💚, declines 💔, or proposes a new time 🔄 (which goes back to the original sender to accept/decline/re-propose) — no additional charge for responding or rescheduling. A decline credits the sender's couple with a date token (no real refund).
 4. Accepted invitations show up under Upcoming Dates (with confetti on accept) and move to Past Dates once the date passes — which also credits the couple with a date token. Either partner can add a memory note, a 1–5 heart rating, and up to 6 photos to a past date.
-5. In-app notifications (bell + toast) fire on new invites, responses, reschedule proposals, and earned tokens.
+5. In-app notifications (bell + toast) fire on new invites, responses, reschedule proposals, and earned tokens — each one also emails the recipient (when Resend is configured) so they find out even if they're not in the app.
 6. A public Support page lets anyone (signed in or not) send a message, stored server-side.
 7. Just met someone? Either partner can also send a one-time first-date invite by email — the recipient doesn't need an account to accept or decline, and it's a single yes/no with no reschedule option.
-8. Email confirmation: signing up sends a confirmation link (soft reminder banner if unconfirmed — never blocks using the app).
+8. Email confirmation: signing up sends a welcome email plus a confirmation link (soft reminder banner if unconfirmed — never blocks using the app).

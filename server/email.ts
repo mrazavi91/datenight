@@ -6,11 +6,27 @@ export const emailEnabled = Boolean(apiKey);
 
 const resend = apiKey ? new Resend(apiKey) : null;
 
+const usingSandboxDomain = !process.env.EMAIL_FROM;
 const FROM = process.env.EMAIL_FROM || "MeetYah <onboarding@resend.dev>";
 
 // Where support-form submissions get forwarded. Override with SUPPORT_NOTIFY_EMAIL if you
 // want them going somewhere else later.
 export const supportNotifyEmail = process.env.SUPPORT_NOTIFY_EMAIL || "mhrazavi99@gmail.com";
+
+if (apiKey && usingSandboxDomain) {
+  // Resend's shared onboarding@resend.dev address can only deliver to the Resend account's
+  // own verified email — every other recipient fails silently from a user's point of view
+  // (signup still "succeeds", no email ever shows up). This is almost always why "email
+  // doesn't work" reports come in while support-request emails (always sent to the account
+  // owner) keep working fine. Verify a domain at resend.com/domains and set EMAIL_FROM to
+  // fix it for everyone, not just yourself.
+  console.warn(
+    "[email] EMAIL_FROM is not set, so MeetYah is sending from Resend's shared onboarding@resend.dev address. " +
+      "That address can only deliver to your own Resend account email — verification, welcome, and invite emails " +
+      "to anyone else will silently fail to arrive. Verify a domain at https://resend.com/domains and set EMAIL_FROM " +
+      "to a real address on it (e.g. hello@yourdomain.com) to fix this for real users."
+  );
+}
 
 export async function sendEmail(params: { to: string; subject: string; html: string; replyTo?: string }): Promise<void> {
   if (!resend) {
@@ -60,6 +76,32 @@ export function verificationEmail(params: { name: string; url: string }): { subj
       <p style="color: #8C3D20; font-size: 15px; line-height: 1.5;">Welcome to MeetYah! Please confirm your email address to finish setting up your account.</p>
       <div style="text-align: center;">${button(params.url, "Confirm email")}</div>
       <p style="color: #EC9C74; font-size: 13px; margin-top: 20px;">If you didn't sign up for MeetYah, you can safely ignore this email.</p>
+    `),
+  };
+}
+
+export function welcomeEmail(params: { name: string; url: string }): { subject: string; html: string } {
+  return {
+    subject: "Welcome to MeetYah! 💕",
+    html: emailShell(`
+      <p style="color: #8C3D20; font-size: 16px;">Hi ${escapeHtml(params.name)},</p>
+      <p style="color: #8C3D20; font-size: 15px; line-height: 1.5;">You're in! Create a couple space (or join your partner's with their invite code) and start planning your next date.</p>
+      <div style="text-align: center;">${button(params.url, "Go to MeetYah")}</div>
+      <p style="color: #EC9C74; font-size: 13px; margin-top: 20px;">It's completely free to send invitations right now — no charge to get started.</p>
+    `),
+  };
+}
+
+// Generic lifecycle-notification email — shared by every couple event (partner joined, an
+// invite was sent/accepted/declined/rescheduled, a date token was earned) so each call site
+// only has to supply the specific heading/message rather than a bespoke template.
+export function coupleUpdateEmail(params: { name: string; heading: string; message: string; url: string }): { subject: string; html: string } {
+  return {
+    subject: params.heading,
+    html: emailShell(`
+      <p style="color: #8C3D20; font-size: 16px;">Hi ${escapeHtml(params.name)},</p>
+      <p style="color: #8C3D20; font-size: 15px; line-height: 1.5;">${escapeHtml(params.message)}</p>
+      <div style="text-align: center;">${button(params.url, "Open MeetYah")}</div>
     `),
   };
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
+import ShareInviteLink from "@/components/ShareInviteLink";
 import type { OneTimeInvitation } from "@shared/schema";
 
 type State = "loading" | "success" | "pending" | "error";
@@ -35,7 +36,6 @@ export default function OneTimeCheckoutComplete() {
         setState("success");
         queryClient.invalidateQueries({ queryKey: ["/api/one-time-invitations"] });
         queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-        setTimeout(() => navigate("/", { replace: true }), 2200);
       })
       .catch((err) => {
         setState("error");
@@ -69,7 +69,12 @@ export default function OneTimeCheckoutComplete() {
             <p className="text-sm text-terracotta-400 mt-1">
               {invitation ? `"${invitation.title}" is on its way to ${invitation.recipientEmail}.` : "Your invitation is on its way."}
             </p>
-            <p className="text-xs text-terracotta-300 mt-3">Redirecting you to the dashboard…</p>
+            {invitation && (
+              <ShareInviteLink url={`${window.location.origin}/first-date/${invitation.responseToken}`} title={invitation.title} />
+            )}
+            <button className="btn-primary w-full mt-5" onClick={() => navigate("/", { replace: true })}>
+              Go to dashboard
+            </button>
           </>
         )}
         {state === "error" && (

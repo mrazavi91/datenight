@@ -1,11 +1,13 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
+import ShareInviteLink from "@/components/ShareInviteLink";
 import { THEME_EMOJIS } from "@/lib/emoji";
 import { useOneTimeInvitationActions } from "@/hooks/useOneTimeInvitations";
 import { useInvitationPrice } from "@/hooks/useInvitations";
 import { useAuthConfig } from "@/hooks/useAuthConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
+import type { OneTimeInvitation } from "@shared/schema";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -32,6 +34,7 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
   const [error, setError] = useState<string | null>(null);
   const [payWithToken, setPayWithToken] = useState(false);
   const [sent, setSent] = useState(false);
+  const [sentInvitation, setSentInvitation] = useState<OneTimeInvitation | null>(null);
 
   const isFree = price?.freeMode ?? false;
   const priceLabel = price ? formatMoney(price.amount, price.currency) : "£1.99";
@@ -46,12 +49,14 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
     try {
       const input = { recipientEmail, recipientName, title, date, time, location, note, emoji };
       if (isFree) {
-        await createFree.mutateAsync(input);
+        const { invitation } = await createFree.mutateAsync(input);
+        setSentInvitation(invitation);
         setSent(true);
         return;
       }
       if (willUseToken) {
-        await useCredit.mutateAsync(input);
+        const { invitation } = await useCredit.mutateAsync(input);
+        setSentInvitation(invitation);
         setSent(true);
         return;
       }
@@ -69,6 +74,9 @@ export default function CreateOneTimeInviteModal({ onClose }: { onClose: () => v
           <div className="text-4xl mb-3">📬</div>
           <p className="text-terracotta-600 font-semibold">Your invite is on its way to {recipientEmail}.</p>
           <p className="text-sm text-terracotta-400 mt-2">We'll let you know here as soon as they respond.</p>
+          {sentInvitation && (
+            <ShareInviteLink url={`${window.location.origin}/first-date/${sentInvitation.responseToken}`} title={sentInvitation.title} />
+          )}
           <button className="btn-primary w-full mt-5" onClick={onClose}>
             Done
           </button>

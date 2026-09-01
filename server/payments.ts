@@ -1,5 +1,6 @@
 import { stripe } from "./stripe";
 import { storage } from "./storage";
+import { notifyUser } from "./notify";
 import { INVITATION_PRICE_MINOR, INVITATION_PRICE_CURRENCY } from "../shared/schema";
 import type { User } from "../shared/schema";
 
@@ -94,7 +95,7 @@ export async function fulfillPayment(paymentId: string): Promise<{ invitationId:
   await storage.updatePayment(payment.id, { invitationId: invite.id });
 
   const sender = await storage.getUserById(payment.senderId);
-  await storage.createNotification({
+  await notifyUser({
     userId: payment.recipientId,
     type: "invite_received",
     message: `${sender?.name ?? "Your partner"} sent you a date invite: "${invite.title}" ${invite.emoji}`,

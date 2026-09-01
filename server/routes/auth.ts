@@ -8,6 +8,7 @@ import { signupSchema, loginSchema, toPublicUser } from "../../shared/schema";
 import type { User } from "../../shared/schema";
 import { requireAuth } from "../middleware";
 import { emailEnabled, sendEmail, verificationEmail } from "../email";
+import { sendWelcomeEmail } from "../notify";
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -59,6 +60,7 @@ router.post("/signup", async (req, res, next) => {
     const user = await storage.createUser({ name, email, passwordHash, authProvider: "email" });
     const origin = `${req.protocol}://${req.get("host")}`;
     await sendVerificationEmail(user, origin);
+    await sendWelcomeEmail(user);
     req.login(user, (err) => {
       if (err) return next(err);
       res.status(201).json({ user: toPublicUser(user) });

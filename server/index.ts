@@ -17,11 +17,9 @@ import { stripe, webhookSecret } from "./stripe";
 import { fulfillPayment } from "./payments";
 import { fulfillOneTimePayment } from "./oneTimeInvitations";
 import { uploadsDir } from "./uploads";
+import adminRoutes from "./routes/admin";
+import { PUBLIC_URL } from "./config";
 import type Stripe from "stripe";
-
-// Used only for webhook-triggered fulfillment (no browser request to read an origin from) —
-// the synchronous /checkout/complete fallback paths use the real request origin instead.
-const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 5000}`;
 
 migrate();
 
@@ -103,6 +101,7 @@ app.use("/api/invitations", invitationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/one-time-invitations", oneTimeInvitationRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

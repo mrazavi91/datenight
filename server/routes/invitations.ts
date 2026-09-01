@@ -15,6 +15,7 @@ import { createInvitationCheckoutSession, fulfillPayment } from "../payments";
 import { reconcilePastDateCredits } from "../credits";
 import { photoUpload, deleteUploadedFile } from "../uploads";
 import { freeMode } from "../pricing";
+import { notifyUser } from "../notify";
 
 const router = Router();
 
@@ -102,7 +103,7 @@ router.post("/use-credit", async (req, res) => {
     paidWithCredit: true,
   });
 
-  await storage.createNotification({
+  await notifyUser({
     userId: partner.id,
     type: "invite_received",
     message: `${user.name} sent you a date invite: "${invite.title}" ${invite.emoji}`,
@@ -140,7 +141,7 @@ router.post("/free", async (req, res) => {
     emoji: parsed.data.emoji,
   });
 
-  await storage.createNotification({
+  await notifyUser({
     userId: partner.id,
     type: "invite_received",
     message: `${user.name} sent you a date invite: "${invite.title}" ${invite.emoji}`,
@@ -218,7 +219,7 @@ router.post("/:id/respond", async (req, res) => {
       patch.time = invite.proposedTime;
     }
     await storage.updateInvitation(invite.id, patch);
-    await storage.createNotification({
+    await notifyUser({
       userId: otherUserId,
       type: "invite_accepted",
       message: `${user.name} said yes to "${invite.title}"! 💚`,
@@ -232,13 +233,13 @@ router.post("/:id/respond", async (req, res) => {
     await storage.updateInvitation(invite.id, { status: "declined", respondedAt: Date.now() });
     // No real refunds — the sender gets a date token back instead, usable on a future invite.
     await storage.incrementCoupleCredits(invite.coupleId, 1);
-    await storage.createNotification({
+    await notifyUser({
       userId: otherUserId,
       type: "invite_declined",
       message: `${user.name} declined "${invite.title}"`,
       invitationId: invite.id,
     });
-    await storage.createNotification({
+    await notifyUser({
       userId: invite.senderId,
       type: "credit_earned",
       message: `"${invite.title}" was declined, so you got a date token back 🎟️`,
@@ -257,7 +258,7 @@ router.post("/:id/respond", async (req, res) => {
     proposedNote: parsed.data.proposedNote || null,
     proposedBy: user.id,
   });
-  await storage.createNotification({
+  await notifyUser({
     userId: otherUserId,
     type: "invite_rescheduled",
     message: `${user.name} proposed a new time for "${invite.title}" 🔄`,

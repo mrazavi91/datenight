@@ -1,4 +1,5 @@
 import { storage } from "./storage";
+import { notifyUser } from "./notify";
 
 // A date "happened" once its (possibly rescheduled) date/time has passed while still
 // accepted. There's no cron here, so this runs lazily whenever a couple's invitations are
@@ -23,7 +24,7 @@ export async function reconcilePastDateCredits(coupleId: string): Promise<number
     const recipient = await storage.getUserById(invite.recipientId);
     for (const user of [sender, recipient]) {
       if (!user) continue;
-      await storage.createNotification({
+      await notifyUser({
         userId: user.id,
         type: "credit_earned",
         message: `"${invite.title}" happened! You earned a date token 🎟️`,
@@ -52,7 +53,7 @@ export async function reconcileOneTimeInvitationCredits(senderId: string): Promi
     await storage.incrementOneTimeCredits(invite.senderId, 1);
     awarded++;
 
-    await storage.createNotification({
+    await notifyUser({
       userId: invite.senderId,
       type: "credit_earned",
       message: `"${invite.title}" happened! You earned a date token 🎟️`,

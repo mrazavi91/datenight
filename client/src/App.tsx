@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import About from "@/pages/About";
 import Support from "@/pages/Support";
 import VerifyEmail from "@/pages/VerifyEmail";
+import Admin from "@/pages/Admin";
 import { useCouple } from "@/hooks/useCouple";
 
 function FullScreenLoader() {
@@ -57,6 +58,7 @@ export default function App() {
       <Route path="/about" element={<About />} />
       <Route path="/support" element={<Support />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/admin" element={<Admin />} />
       <Route path="/first-date/:token" element={<OneTimeInviteResponse />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" />} />
