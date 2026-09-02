@@ -80,6 +80,8 @@ export default function Admin() {
   const [data, setData] = useState<AdminData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function load(withSecret: string) {
     setLoading(true);
@@ -96,6 +98,26 @@ export default function Admin() {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDeleteUser(user: AdminUser) {
+    const warning = user.coupleId
+      ? `Delete ${user.name}'s account? Their partner's account and your whole shared couple history will be deleted too. This can't be undone.`
+      : `Delete ${user.name}'s account? This can't be undone.`;
+    if (!window.confirm(warning)) return;
+
+    setDeletingId(user.id);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE", headers: { "x-admin-secret": secret } });
+      const body = await res.json();
+      if (!res.ok) throw new ApiError(res.status, body?.message || "Failed to delete");
+      await load(secret);
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "Couldn't delete that account");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -159,18 +181,48 @@ export default function Admin() {
       </div>
 
       <Section title={`Users (${data.users.length})`}>
-        <Table
-          columns={["Name", "Email", "Provider", "Verified", "Couple", "Tokens", "Created"]}
-          rows={data.users.map((u) => [
-            u.name,
-            u.email,
-            u.authProvider,
-            u.emailVerified ? "✅" : "—",
-            u.coupleId ? u.coupleId.slice(0, 8) : "—",
-            String(u.oneTimeCredits),
-            fmt(u.createdAt),
-          ])}
-        />
+        {deleteError && <p className="text-sm text-blush-600 bg-blush-50 rounded-xl px-3 py-2 m-3">{deleteError}</p>}
+        {data.users.length === 0 ? (
+          <p className="text-sm text-terracotta-400 p-4">Nothing yet.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-blush-100">
+                {["Name", "Email", "Provider", "Verified", "Couple", "Tokens", "Created", ""].map((c) => (
+                  <th key={c} className="text-left font-semibold text-terracotta-600 px-3 py-2 whitespace-nowrap">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.users.map((u) => (
+                <tr key={u.id} className="border-b border-blush-50 last:border-0">
+                  <td className="px-3 py-2 text-terracotta-500 max-w-xs truncate" title={u.name}>
+                    {u.name}
+                  </td>
+                  <td className="px-3 py-2 text-terracotta-500 max-w-xs truncate" title={u.email}>
+                    {u.email}
+                  </td>
+                  <td className="px-3 py-2 text-terracotta-500">{u.authProvider}</td>
+                  <td className="px-3 py-2 text-terracotta-500">{u.emailVerified ? "✅" : "—"}</td>
+                  <td className="px-3 py-2 text-terracotta-500">{u.coupleId ? u.coupleId.slice(0, 8) : "—"}</td>
+                  <td className="px-3 py-2 text-terracotta-500">{u.oneTimeCredits}</td>
+                  <td className="px-3 py-2 text-terracotta-500 whitespace-nowrap">{fmt(u.createdAt)}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      className="text-xs font-semibold text-blush-600 hover:underline disabled:opacity-50 whitespace-nowrap"
+                      onClick={() => handleDeleteUser(u)}
+                      disabled={deletingId === u.id}
+                    >
+                      {deletingId === u.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Section>
 
       <Section title={`Couples (${data.couples.length})`}>
