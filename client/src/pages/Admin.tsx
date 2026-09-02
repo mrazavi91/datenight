@@ -51,12 +51,21 @@ interface AdminSupportRequest {
   createdAt: number;
 }
 
+interface AdminAccountDeletion {
+  id: string;
+  name: string;
+  email: string;
+  reason: string | null;
+  createdAt: number;
+}
+
 interface AdminData {
   users: AdminUser[];
   couples: AdminCouple[];
   invitations: AdminInvitation[];
   oneTimeInvitations: AdminOneTimeInvitation[];
   supportRequests: AdminSupportRequest[];
+  accountDeletions: AdminAccountDeletion[];
 }
 
 const STORAGE_KEY = "meetyah_admin_secret";
@@ -190,6 +199,13 @@ export default function Admin() {
         <Table
           columns={["Name", "Email", "Message", "Status", "Created"]}
           rows={data.supportRequests.map((s) => [s.name, s.email, s.message, s.status, fmt(s.createdAt)])}
+        />
+      </Section>
+
+      <Section title={`Account deletions (${data.accountDeletions.length})`}>
+        <Table
+          columns={["Name", "Email", "Reason", "Deleted"]}
+          rows={data.accountDeletions.map((d) => [d.name, d.email, d.reason || "— not given —", fmt(d.createdAt)])}
         />
       </Section>
     </div>

@@ -11,6 +11,9 @@ import About from "@/pages/About";
 import Support from "@/pages/Support";
 import VerifyEmail from "@/pages/VerifyEmail";
 import Admin from "@/pages/Admin";
+import Settings from "@/pages/Settings";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import { useCouple } from "@/hooks/useCouple";
 
 function FullScreenLoader() {
@@ -59,6 +62,16 @@ export default function App() {
       <Route path="/support" element={<Support />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route
+        path="/settings"
+        element={
+          <RequireAuth>
+            <Settings />
+          </RequireAuth>
+        }
+      />
       <Route path="/first-date/:token" element={<OneTimeInviteResponse />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage mode="login" />} />
       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <AuthPage mode="signup" />} />

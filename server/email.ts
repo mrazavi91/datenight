@@ -106,6 +106,18 @@ export function coupleUpdateEmail(params: { name: string; heading: string; messa
   };
 }
 
+export function resetPasswordEmail(params: { name: string; url: string }): { subject: string; html: string } {
+  return {
+    subject: "Reset your MeetYah password",
+    html: emailShell(`
+      <p style="color: #8C3D20; font-size: 16px;">Hi ${escapeHtml(params.name)},</p>
+      <p style="color: #8C3D20; font-size: 15px; line-height: 1.5;">We got a request to reset your MeetYah password. Click below to set a new one — this link expires in an hour.</p>
+      <div style="text-align: center;">${button(params.url, "Reset password")}</div>
+      <p style="color: #EC9C74; font-size: 13px; margin-top: 20px;">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+    `),
+  };
+}
+
 export function oneTimeInviteEmail(params: {
   senderName: string;
   recipientName?: string;

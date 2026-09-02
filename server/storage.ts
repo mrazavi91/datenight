@@ -10,6 +10,7 @@ import {
   notifications,
   payments,
   supportRequests,
+  accountDeletions,
   oneTimeInvitations,
   oneTimePayments,
   type User,
@@ -20,6 +21,7 @@ import {
   type Notification,
   type Payment,
   type SupportRequest,
+  type AccountDeletion,
   type OneTimeInvitation,
   type OneTimePayment,
 } from "../shared/schema";
@@ -68,6 +70,8 @@ export const storage = {
       emailVerifiedAt: data.emailVerifiedAt ?? null,
       verificationToken: data.verificationToken ?? null,
       verificationTokenExpiresAt: data.verificationTokenExpiresAt ?? null,
+      resetToken: null,
+      resetTokenExpiresAt: null,
       oneTimeCredits: 0,
       createdAt: Date.now(),
     };
@@ -79,6 +83,40 @@ export const storage = {
   },
   async getUserByVerificationToken(token: string): Promise<User | undefined> {
     return db.select().from(users).where(eq(users.verificationToken, token)).get();
+  },
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    return db.select().from(users).where(eq(users.resetToken, token)).get();
+  },
+  // Removes a user and cleans up what's only theirs (notifications, one-time invites they
+  // sent). If they were in a paired couple, the couple and its invitation/memory history stay
+  // intact for the remaining partner — just the deleted user's slot is freed up so a new
+  // partner can join. An unpaired (solo) couple has no history to preserve, so it's removed too.
+  async deleteUserCascade(userId: string): Promise<{ remainingPartnerId: string | null }> {
+    db.delete(oneTimeInvitations).where(eq(oneTimeInvitations.senderId, userId)).run();
+    db.delete(oneTimePayments).where(eq(oneTimePayments.senderId, userId)).run();
+    db.delete(notifications).where(eq(notifications.userId, userId)).run();
+
+    let remainingPartnerId: string | null = null;
+    const user = await this.getUserById(userId);
+    if (user?.coupleId) {
+      const couple = await this.getCoupleById(user.coupleId);
+      if (couple) {
+        const isUser1 = couple.user1Id === userId;
+        const otherId = isUser1 ? couple.user2Id : couple.user1Id;
+        if (!otherId) {
+          db.delete(couples).where(eq(couples.id, couple.id)).run();
+        } else {
+          db.update(couples)
+            .set(isUser1 ? { user1Id: otherId, user2Id: null } : { user2Id: null })
+            .where(eq(couples.id, couple.id))
+            .run();
+          remainingPartnerId = otherId;
+        }
+      }
+    }
+
+    db.delete(users).where(eq(users.id, userId)).run();
+    return { remainingPartnerId };
   },
   async incrementOneTimeCredits(userId: string, delta: number): Promise<void> {
     db.update(users).set({ oneTimeCredits: sql`${users.oneTimeCredits} + ${delta}` }).where(eq(users.id, userId)).run();
@@ -343,6 +381,19 @@ export const storage = {
     };
     db.insert(supportRequests).values(request).run();
     return request;
+  },
+
+  // ----- Account deletions -----
+  async createAccountDeletion(data: { name: string; email: string; reason?: string }): Promise<AccountDeletion> {
+    const record: AccountDeletion = {
+      id: nanoid(),
+      name: data.name,
+      email: data.email,
+      reason: data.reason || null,
+      createdAt: Date.now(),
+    };
+    db.insert(accountDeletions).values(record).run();
+    return record;
   },
 
   // ----- One-time invitations -----

@@ -3,6 +3,7 @@ import type { Invitation, PublicUser, Memory } from "@shared/schema";
 import { formatDate, formatTime } from "@/lib/invitations";
 import { useInvitationActions } from "@/hooks/useInvitations";
 import { api, apiUpload, ApiError } from "@/lib/api";
+import PhotoLightbox from "@/components/PhotoLightbox";
 import { Heart, MapPin, Camera, X } from "lucide-react";
 
 interface Photo {
@@ -22,6 +23,7 @@ export default function PastDateCard({ invitation, partner }: { invitation: Invi
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function loadMemory() {
@@ -89,9 +91,11 @@ export default function PastDateCard({ invitation, partner }: { invitation: Invi
 
           {photos.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
-              {photos.map((p) => (
+              {photos.map((p, i) => (
                 <div key={p.id} className="relative w-16 h-16 rounded-xl overflow-hidden border border-blush-100 shrink-0">
-                  <img src={p.url} alt="" className="w-full h-full object-cover" />
+                  <button type="button" className="w-full h-full block" onClick={() => setLightboxIndex(i)} aria-label="View photo full-size">
+                    <img src={p.url} alt="" className="w-full h-full object-cover" />
+                  </button>
                   <button
                     onClick={() => handleDeletePhoto(p.id)}
                     className="absolute top-0.5 right-0.5 bg-terracotta-900/60 text-white rounded-full p-0.5"
@@ -176,6 +180,10 @@ export default function PastDateCard({ invitation, partner }: { invitation: Invi
           {saved && <p className="text-xs text-green-600 mt-1">Saved 💾</p>}
         </div>
       </div>
+
+      {lightboxIndex !== null && (
+        <PhotoLightbox photos={photos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} />
+      )}
     </div>
   );
 }

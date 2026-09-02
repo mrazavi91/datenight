@@ -86,6 +86,14 @@ export function migrate() {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS account_deletions (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      reason TEXT,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -160,6 +168,8 @@ export function migrate() {
   ensureColumn("users", "verification_token", "TEXT");
   ensureColumn("users", "verification_token_expires_at", "INTEGER");
   ensureColumn("users", "one_time_credits", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("users", "reset_token", "TEXT");
+  ensureColumn("users", "reset_token_expires_at", "INTEGER");
 }
 
 function ensureColumn(table: string, column: string, definition: string) {

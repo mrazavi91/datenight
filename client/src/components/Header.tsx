@@ -1,7 +1,8 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCouple } from "@/hooks/useCouple";
 import NotificationBell from "@/components/NotificationBell";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 
 function Avatar({ name, url }: { name: string; url?: string | null }) {
   if (url) {
@@ -48,6 +49,9 @@ export default function Header() {
             </div>
           )}
           <NotificationBell />
+          <Link to="/settings" className="p-2 rounded-full hover:bg-blush-100 text-terracotta-500" aria-label="Account settings">
+            <Settings size={20} />
+          </Link>
           <button onClick={() => logout.mutate()} className="p-2 rounded-full hover:bg-blush-100 text-terracotta-500" aria-label="Log out">
             <LogOut size={20} />
           </button>

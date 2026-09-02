@@ -60,6 +60,12 @@ For meeting someone for the first time — no couple space required. Reachable f
 
 Right after sending, the sender also gets the shareable link itself (`/first-date/:token`) with a share sheet (native share on mobile, plus explicit WhatsApp and copy-link buttons) — useful when email isn't the best way to reach someone, or as a backup if it lands in spam.
 
+### Account settings
+
+Signed-in users get a settings page (gear icon in the header) to change their display name — useful for Google sign-ups, where the name comes pre-filled from Google — and to delete their account. Deleting asks for an optional reason (a quick-pick list or free text, both skippable) before removing the account; if they were paired, their partner keeps the couple space and its history, just unpaired and notified (in-app + email) so they can invite someone new.
+
+Email/password users who forget their password can request a reset link from the login page (`/forgot-password`), same token+expiry pattern as email verification. Google-only accounts don't have a password to reset, so that request is a no-op (the response is identical either way, so the endpoint can't be used to check who's registered).
+
 ### Admin page
 
 Set `ADMIN_SECRET` and visit `/admin` to see every user (name, email, auth provider, verified status, couple, token balance), every couple, every invitation (couple and one-time), and support requests — a quick way to check the database without needing a SQLite client. It's gated by that shared secret only, not a real login; leave `ADMIN_SECRET` unset to disable the page entirely.
@@ -86,7 +92,7 @@ shared/       Drizzle schema + Zod validators shared by client and server
 1. Signed-out visitors land on a marketing Home page (with About/Support in the nav); sign up (email/password or Google) → create a couple space or join one with a 6-character invite code.
 2. Either partner creates a date invitation (title, date, time, location, emoji theme, note) and sends it. While `FREE_MODE` is on (the default), that's free; once turned off, sending costs £1.99 via Stripe Checkout, or a date token instead if the couple has one — the invitation is only created once payment (or the token spend) succeeds.
 3. The partner accepts 💚, declines 💔, or proposes a new time 🔄 (which goes back to the original sender to accept/decline/re-propose) — no additional charge for responding or rescheduling. A decline credits the sender's couple with a date token (no real refund).
-4. Accepted invitations show up under Upcoming Dates (with confetti on accept) and move to Past Dates once the date passes — which also credits the couple with a date token. Either partner can add a memory note, a 1–5 heart rating, and up to 6 photos to a past date.
+4. Accepted invitations show up under Upcoming Dates (with confetti on accept) and move to Past Dates once the date passes — which also credits the couple with a date token. Either partner can add a memory note, a 1–5 heart rating, and up to 6 photos to a past date — click any photo to view it full-size.
 5. In-app notifications (bell + toast) fire on new invites, responses, reschedule proposals, and earned tokens — each one also emails the recipient (when Resend is configured) so they find out even if they're not in the app.
 6. A public Support page lets anyone (signed in or not) send a message, stored server-side.
 7. Just met someone? Either partner can also send a one-time first-date invite by email — the recipient doesn't need an account to accept or decline, and it's a single yes/no with no reschedule option.

@@ -4,13 +4,22 @@ import { nanoid } from "nanoid";
 import passport from "../auth";
 import { googleAuthEnabled } from "../auth";
 import { storage } from "../storage";
-import { signupSchema, loginSchema, toPublicUser } from "../../shared/schema";
+import {
+  signupSchema,
+  loginSchema,
+  updateProfileSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  deleteAccountSchema,
+  toPublicUser,
+} from "../../shared/schema";
 import type { User } from "../../shared/schema";
 import { requireAuth } from "../middleware";
-import { emailEnabled, sendEmail, verificationEmail } from "../email";
-import { sendWelcomeEmail } from "../notify";
+import { emailEnabled, sendEmail, verificationEmail, resetPasswordEmail } from "../email";
+import { sendWelcomeEmail, notifyUser } from "../notify";
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
 
 async function sendVerificationEmail(user: User, origin: string) {
   if (!emailEnabled) return;
@@ -98,6 +107,82 @@ router.post("/logout", (req, res, next) => {
 
 router.get("/me", requireAuth, (req, res) => {
   res.json({ user: toPublicUser(req.user as User) });
+});
+
+router.patch("/me", requireAuth, async (req, res) => {
+  const parsed = updateProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+  const user = req.user as User;
+  await storage.updateUser(user.id, { name: parsed.data.name });
+  const updated = await storage.getUserById(user.id);
+  res.json({ user: toPublicUser(updated as User) });
+});
+
+router.delete("/me", requireAuth, async (req, res, next) => {
+  const parsed = deleteAccountSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+  const user = req.user as User;
+
+  await storage.createAccountDeletion({ name: user.name, email: user.email, reason: parsed.data.reason || undefined });
+  const { remainingPartnerId } = await storage.deleteUserCascade(user.id);
+  if (remainingPartnerId) {
+    await notifyUser({
+      userId: remainingPartnerId,
+      type: "partner_left",
+      message: `${user.name} deleted their MeetYah account. Your couple space is unpaired — share your invite code with a new partner whenever you're ready.`,
+    });
+  }
+
+  req.logout((err) => {
+    if (err) return next(err);
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ ok: true });
+    });
+  });
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+  // Always respond the same way regardless of whether the account exists (or has a password
+  // to reset), so this endpoint can't be used to check who's registered.
+  const user = await storage.getUserByEmail(parsed.data.email);
+  if (user && user.passwordHash && emailEnabled) {
+    const token = nanoid(32);
+    await storage.updateUser(user.id, { resetToken: token, resetTokenExpiresAt: Date.now() + RESET_TOKEN_TTL_MS });
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const { subject, html } = resetPasswordEmail({ name: user.name, url: `${origin}/reset-password?token=${token}` });
+    try {
+      await sendEmail({ to: user.email, subject, html });
+    } catch {
+      // Best-effort — the generic response below doesn't reveal whether this failed.
+    }
+  }
+  res.json({ ok: true });
+});
+
+router.post("/reset-password", async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+  const user = await storage.getUserByResetToken(parsed.data.token);
+  if (!user) {
+    return res.status(404).json({ message: "That reset link isn't valid. It may have already been used." });
+  }
+  if (user.resetTokenExpiresAt && user.resetTokenExpiresAt < Date.now()) {
+    return res.status(410).json({ message: "That reset link has expired. Request a new one." });
+  }
+  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  await storage.updateUser(user.id, { passwordHash, resetToken: null, resetTokenExpiresAt: null });
+  res.json({ ok: true });
 });
 
 router.post("/verify-email", async (req, res) => {

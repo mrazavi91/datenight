@@ -14,6 +14,8 @@ export const users = sqliteTable("users", {
   emailVerifiedAt: integer("email_verified_at"),
   verificationToken: text("verification_token").unique(),
   verificationTokenExpiresAt: integer("verification_token_expires_at"),
+  resetToken: text("reset_token").unique(),
+  resetTokenExpiresAt: integer("reset_token_expires_at"),
   oneTimeCredits: integer("one_time_credits").notNull().default(0), // separate wallet: doesn't require a couple
   createdAt: integer("created_at").notNull(),
 });
@@ -119,6 +121,14 @@ export const oneTimePayments = sqliteTable("one_time_payments", {
   fulfilledAt: integer("fulfilled_at"),
 });
 
+export const accountDeletions = sqliteTable("account_deletions", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  reason: text("reason"), // optional free-text/selected reason, entirely optional
+  createdAt: integer("created_at").notNull(),
+});
+
 export const payments = sqliteTable("payments", {
   id: text("id").primaryKey(),
   stripeSessionId: text("stripe_session_id").unique(),
@@ -176,6 +186,23 @@ export const createMemorySchema = z.object({
   rating: z.number().int().min(1).max(5).optional(),
 });
 
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(80),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Invalid email"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Missing reset token"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+});
+
+export const deleteAccountSchema = z.object({
+  reason: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
 export const supportRequestSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(80),
   email: z.string().trim().toLowerCase().email("Invalid email"),
@@ -203,6 +230,17 @@ export const MAX_MEMORY_PHOTOS = 6;
 export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 export const ONE_TIME_INVITATION_EXPIRY_DAYS = 14;
 
+// Shown as quick-pick options on the delete-account confirmation — entirely optional, purely
+// for product feedback.
+export const ACCOUNT_DELETE_REASONS = [
+  "Not using it anymore",
+  "Found a different app",
+  "Too many emails or notifications",
+  "Privacy concerns",
+  "My relationship status changed",
+  "Something else",
+] as const;
+
 export type User = typeof users.$inferSelect;
 export type Couple = typeof couples.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
@@ -211,6 +249,7 @@ export type MemoryPhoto = typeof memoryPhotos.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type SupportRequest = typeof supportRequests.$inferSelect;
+export type AccountDeletion = typeof accountDeletions.$inferSelect;
 export type OneTimeInvitation = typeof oneTimeInvitations.$inferSelect;
 export type OneTimePayment = typeof oneTimePayments.$inferSelect;
 

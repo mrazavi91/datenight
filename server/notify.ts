@@ -8,6 +8,7 @@ import { PUBLIC_URL } from "./config";
 // — ToastWatcher.tsx also matches against these strings for its confetti trigger.
 const EMAIL_SUBJECTS: Record<string, string> = {
   partner_joined: "Your partner joined MeetYah! 🎉",
+  partner_left: "An update about your couple space",
   invite_received: "You've got a new date invite 💌",
   invite_accepted: "Your date invite was accepted! 💚",
   invite_declined: "An update on your date invite",
