@@ -15,8 +15,10 @@ import {
 } from "../../shared/schema";
 import type { User } from "../../shared/schema";
 import { requireAuth } from "../middleware";
-import { emailEnabled, sendEmail, verificationEmail, resetPasswordEmail } from "../email";
-import { sendWelcomeEmail, notifyUser } from "../notify";
+import { emailEnabled, sendEmail, verificationEmail, resetPasswordEmail, coupleUpdateEmail } from "../email";
+import { sendWelcomeEmail } from "../notify";
+import { deleteUploadedFile } from "../uploads";
+import { PUBLIC_URL } from "../config";
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
@@ -128,13 +130,30 @@ router.delete("/me", requireAuth, async (req, res, next) => {
   const user = req.user as User;
 
   await storage.createAccountDeletion({ name: user.name, email: user.email, reason: parsed.data.reason || undefined });
-  const { remainingPartnerId } = await storage.deleteUserCascade(user.id);
-  if (remainingPartnerId) {
-    await notifyUser({
-      userId: remainingPartnerId,
-      type: "partner_left",
-      message: `${user.name} deleted their MeetYah account. Your couple space is unpaired — share your invite code with a new partner whenever you're ready.`,
+  const { removedPartner, photoFilenames } = await storage.deleteUserAndCascade(user.id);
+  photoFilenames.forEach((filename) => deleteUploadedFile(filename));
+
+  if (removedPartner) {
+    // Their account is already gone at this point, so there's no notification row to create
+    // (nothing left to read it) — a direct email is the only way to reach them.
+    await storage.createAccountDeletion({
+      name: removedPartner.name,
+      email: removedPartner.email,
+      reason: `Removed automatically — ${user.name} deleted their MeetYah account`,
     });
+    if (emailEnabled) {
+      const { subject, html } = coupleUpdateEmail({
+        name: removedPartner.name,
+        heading: "Your MeetYah couple space has been closed",
+        message: `${user.name} deleted their MeetYah account, so your shared couple space — including its date history — has been removed too. You're welcome to sign up again anytime for a fresh start.`,
+        url: PUBLIC_URL,
+      });
+      try {
+        await sendEmail({ to: removedPartner.email, subject, html });
+      } catch {
+        // Best-effort — nothing more to do if this fails, the account is already gone.
+      }
+    }
   }
 
   req.logout((err) => {

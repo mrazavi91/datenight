@@ -29,8 +29,8 @@ export default function DeleteAccountModal({ onClose }: { onClose: () => void })
       <Modal title="Are you sure?" onClose={onClose}>
         <div className="space-y-4">
           <p className="text-sm text-terracotta-500">
-            This permanently deletes your account. If you're paired with a partner, your couple space is unpaired but their date
-            history stays — this can't be undone.
+            This permanently deletes your account. If you're paired with a partner, <strong>their account and your whole shared
+            date history are deleted too</strong> — they'll get an email letting them know. This can't be undone.
           </p>
           {error && <p className="text-sm text-blush-600 bg-blush-50 rounded-xl px-3 py-2">{error}</p>}
           <div className="flex gap-2">

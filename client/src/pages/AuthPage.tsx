@@ -42,11 +42,11 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+        <Link to="/" className="block text-center mb-8">
           <div className="text-5xl mb-2 animate-pop-in">💌</div>
           <h1 className="text-3xl font-display font-bold text-terracotta-600">MeetYah</h1>
           <p className="text-terracotta-400 mt-1">Plan sweet moments together</p>
-        </div>
+        </Link>
 
         <div className="card p-6">
           <h2 className="text-xl font-display font-bold mb-4">{isSignup ? "Create your account" : "Welcome back"}</h2>

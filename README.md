@@ -62,7 +62,7 @@ Right after sending, the sender also gets the shareable link itself (`/first-dat
 
 ### Account settings
 
-Signed-in users get a settings page (gear icon in the header) to change their display name — useful for Google sign-ups, where the name comes pre-filled from Google — and to delete their account. Deleting asks for an optional reason (a quick-pick list or free text, both skippable) before removing the account; if they were paired, their partner keeps the couple space and its history, just unpaired and notified (in-app + email) so they can invite someone new.
+Signed-in users get a settings page (gear icon in the header) to change their display name — useful for Google sign-ups, where the name comes pre-filled from Google — and to delete their account. Deleting asks for an optional reason (a quick-pick list or free text, both skippable) before removing the account. If they were paired, their partner's account and the whole shared couple space — invitations, memories, photos, all of it — are deleted too, since half a couple's history with someone who's gone isn't something worth keeping around; the partner gets an email letting them know, and is welcome to sign up fresh anytime.
 
 Email/password users who forget their password can request a reset link from the login page (`/forgot-password`), same token+expiry pattern as email verification. Google-only accounts don't have a password to reset, so that request is a no-op (the response is identical either way, so the endpoint can't be used to check who's registered).
 

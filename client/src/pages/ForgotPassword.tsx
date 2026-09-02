@@ -64,6 +64,10 @@ export default function ForgotPassword() {
           <Link to="/login" className="text-terracotta-600 font-semibold hover:underline">
             Back to log in
           </Link>
+          {" · "}
+          <Link to="/" className="text-terracotta-600 font-semibold hover:underline">
+            Home
+          </Link>
         </p>
       </div>
     </div>

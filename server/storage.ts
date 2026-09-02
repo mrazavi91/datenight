@@ -87,36 +87,60 @@ export const storage = {
   async getUserByResetToken(token: string): Promise<User | undefined> {
     return db.select().from(users).where(eq(users.resetToken, token)).get();
   },
-  // Removes a user and cleans up what's only theirs (notifications, one-time invites they
-  // sent). If they were in a paired couple, the couple and its invitation/memory history stay
-  // intact for the remaining partner — just the deleted user's slot is freed up so a new
-  // partner can join. An unpaired (solo) couple has no history to preserve, so it's removed too.
-  async deleteUserCascade(userId: string): Promise<{ remainingPartnerId: string | null }> {
-    db.delete(oneTimeInvitations).where(eq(oneTimeInvitations.senderId, userId)).run();
-    db.delete(oneTimePayments).where(eq(oneTimePayments.senderId, userId)).run();
-    db.delete(notifications).where(eq(notifications.userId, userId)).run();
+  // Removes a user entirely, along with anything only theirs (notifications, one-time
+  // invites/payments they sent). If they were in a couple — paired or not — the whole couple
+  // space goes with them: its invitations, memories, memory photos, and payments, and (if
+  // paired) the partner's account too, since half a couple's shared history with a deleted
+  // person isn't something the app can meaningfully keep around. Returns the removed partner's
+  // basic info (so the caller can email them — their account is already gone by then) and every
+  // photo filename that needs deleting from disk.
+  async deleteUserAndCascade(
+    userId: string
+  ): Promise<{ removedPartner: { id: string; name: string; email: string } | null; photoFilenames: string[] }> {
+    const deletePersonalData = (id: string) => {
+      db.delete(oneTimeInvitations).where(eq(oneTimeInvitations.senderId, id)).run();
+      db.delete(oneTimePayments).where(eq(oneTimePayments.senderId, id)).run();
+      db.delete(notifications).where(eq(notifications.userId, id)).run();
+    };
 
-    let remainingPartnerId: string | null = null;
     const user = await this.getUserById(userId);
-    if (user?.coupleId) {
+    if (!user) return { removedPartner: null, photoFilenames: [] };
+
+    deletePersonalData(userId);
+
+    let removedPartner: { id: string; name: string; email: string } | null = null;
+    const photoFilenames: string[] = [];
+
+    if (user.coupleId) {
       const couple = await this.getCoupleById(user.coupleId);
       if (couple) {
-        const isUser1 = couple.user1Id === userId;
-        const otherId = isUser1 ? couple.user2Id : couple.user1Id;
-        if (!otherId) {
-          db.delete(couples).where(eq(couples.id, couple.id)).run();
-        } else {
-          db.update(couples)
-            .set(isUser1 ? { user1Id: otherId, user2Id: null } : { user2Id: null })
-            .where(eq(couples.id, couple.id))
-            .run();
-          remainingPartnerId = otherId;
+        const coupleInvitations = await this.getInvitationsForCouple(couple.id);
+        for (const inv of coupleInvitations) {
+          const memory = await this.getMemoryByInvitationId(inv.id);
+          if (!memory) continue;
+          const photos = await this.getMemoryPhotos(memory.id);
+          photoFilenames.push(...photos.map((p) => p.filename));
+          db.delete(memoryPhotos).where(eq(memoryPhotos.memoryId, memory.id)).run();
+          db.delete(memories).where(eq(memories.id, memory.id)).run();
+        }
+        db.delete(invitations).where(eq(invitations.coupleId, couple.id)).run();
+        db.delete(payments).where(eq(payments.coupleId, couple.id)).run();
+        db.delete(couples).where(eq(couples.id, couple.id)).run();
+
+        const partnerId = couple.user1Id === userId ? couple.user2Id : couple.user1Id;
+        if (partnerId) {
+          const partner = await this.getUserById(partnerId);
+          if (partner) {
+            removedPartner = { id: partner.id, name: partner.name, email: partner.email };
+            deletePersonalData(partnerId);
+            db.delete(users).where(eq(users.id, partnerId)).run();
+          }
         }
       }
     }
 
     db.delete(users).where(eq(users.id, userId)).run();
-    return { remainingPartnerId };
+    return { removedPartner, photoFilenames };
   },
   async incrementOneTimeCredits(userId: string, delta: number): Promise<void> {
     db.update(users).set({ oneTimeCredits: sql`${users.oneTimeCredits} + ${delta}` }).where(eq(users.id, userId)).run();

@@ -26,10 +26,10 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-20 bg-cream-100/80 backdrop-blur border-b border-blush-100">
       <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2" aria-label="Go to dashboard">
           <span className="text-2xl">💕</span>
           <span className="font-display font-bold text-lg text-terracotta-600 hidden sm:inline">MeetYah</span>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-3">
           {credits > 0 && (

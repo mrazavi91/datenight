@@ -77,6 +77,12 @@ export default function ResetPassword() {
             </form>
           )}
         </div>
+
+        <p className="text-center text-sm text-terracotta-400 mt-5">
+          <Link to="/" className="text-terracotta-600 font-semibold hover:underline">
+            Back to home
+          </Link>
+        </p>
       </div>
     </div>
   );

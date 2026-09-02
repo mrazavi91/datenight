@@ -141,16 +141,21 @@ export default function Admin() {
     <div className="min-h-screen px-4 py-8 max-w-6xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-display font-bold text-terracotta-700">Admin</h1>
-        <button
-          className="btn-secondary !py-1.5 !px-3 text-sm"
-          onClick={() => {
-            sessionStorage.removeItem(STORAGE_KEY);
-            setData(null);
-            setSecret("");
-          }}
-        >
-          Lock
-        </button>
+        <div className="flex items-center gap-2">
+          <Link to="/" className="btn-secondary !py-1.5 !px-3 text-sm">
+            Back to MeetYah
+          </Link>
+          <button
+            className="btn-secondary !py-1.5 !px-3 text-sm"
+            onClick={() => {
+              sessionStorage.removeItem(STORAGE_KEY);
+              setData(null);
+              setSecret("");
+            }}
+          >
+            Lock
+          </button>
+        </div>
       </div>
 
       <Section title={`Users (${data.users.length})`}>
